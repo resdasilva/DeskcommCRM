@@ -31,6 +31,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import {
   useAvisoDeAgendamento,
+  useGruposDaConexao,
   useSalvarAvisoDeAgendamento,
   useTestarAvisoDeAgendamento,
 } from "@/hooks/agenda/useAvisoDeAgendamento";
@@ -59,17 +60,23 @@ interface Rascunho {
   usaNumeroDoCaso: boolean;
   canal: string;
   telefone: string;
+  /** `SEM_GRUPO` = nenhum grupo. */
+  grupo: string;
   ligado: boolean;
 }
 
+/** O `Select` não aceita valor vazio: este é o "nenhum grupo". */
+const SEM_GRUPO = "sem-grupo";
+
 function rascunhoDoEstado(estado: EstadoDaTelaDoAvisoDeAgendamento): Rascunho {
   if (!estado.config) {
-    return { usaNumeroDoCaso: estado.aviso_de_caso !== null, canal: "", telefone: "", ligado: false };
+    return { usaNumeroDoCaso: estado.aviso_de_caso !== null, canal: "", telefone: "", grupo: SEM_GRUPO, ligado: false };
   }
   return {
     usaNumeroDoCaso: estado.config.usa_numero_do_aviso_de_caso,
     canal: estado.config.channel_session_id ?? "",
     telefone: estado.config.telefone ?? "",
+    grupo: estado.config.grupo ?? SEM_GRUPO,
     ligado: estado.config.ligado,
   };
 }
@@ -129,12 +136,15 @@ function FormularioDoAviso({ estado }: { estado: EstadoDaTelaDoAvisoDeAgendament
   const podeSalvar = destinoOk && !salvar.isPending;
   const jaSalvo = estado.config !== null;
   const conexaoDoCaso = estado.conexoes.find((c) => c.id === estado.aviso_de_caso?.channel_session_id);
+  const conexaoQueEnvia = usaCaso ? (estado.aviso_de_caso?.channel_session_id ?? null) : rascunho.canal || null;
+  const grupos = useGruposDaConexao(conexaoQueEnvia);
 
   async function enviar(confirma: boolean) {
     try {
       await salvar.mutateAsync({
         usa_numero_do_aviso_de_caso: usaCaso,
         ...(usaCaso ? {} : { channel_session_id: rascunho.canal, telefone: rascunho.telefone }),
+        grupo: rascunho.grupo === SEM_GRUPO ? null : rascunho.grupo,
         ligado: rascunho.ligado,
         ...(confirma ? { confirma_contato: true } : {}),
       });
@@ -242,6 +252,37 @@ function FormularioDoAviso({ estado }: { estado: EstadoDaTelaDoAvisoDeAgendament
           </div>
         </>
       ) : null}
+
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="grupo">{t("Grupo do WhatsApp que também recebe os avisos")}</Label>
+        <Select
+          value={rascunho.grupo}
+          onValueChange={(v) => setRascunho((r) => ({ ...r, grupo: v }))}
+          disabled={!conexaoQueEnvia || grupos.isLoading}
+        >
+          <SelectTrigger id="grupo" className="w-full sm:w-96" data-testid="grupo-do-aviso">
+            <SelectValue placeholder={t("Nenhum grupo")} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={SEM_GRUPO}>{t("Nenhum grupo")}</SelectItem>
+            {(grupos.data ?? [])
+              .filter((g) => g.presente || g.chatId === rascunho.grupo)
+              .map((g) => (
+                <SelectItem key={g.chatId} value={g.chatId}>
+                  {g.subject ?? g.chatId}
+                </SelectItem>
+              ))}
+            {rascunho.grupo !== SEM_GRUPO && !grupos.data?.some((g) => g.chatId === rascunho.grupo) ? (
+              <SelectItem value={rascunho.grupo}>{t("Grupo salvo")}</SelectItem>
+            ) : null}
+          </SelectContent>
+        </Select>
+        <p className="text-xs text-muted-foreground">
+          {grupos.isError
+            ? t("Não foi possível listar os grupos desta conexão agora. Confira se ela está conectada.")
+            : t("Opcional. A equipe vê no grupo os mesmos avisos e o resumo das 7h, sem ninguém repassar.")}
+        </p>
+      </div>
 
       <div className="flex items-start gap-3 rounded-lg border p-3">
         <Switch

@@ -241,7 +241,7 @@ describe("0707 — fn_definir_aviso_de_agendamento é a única porta", () => {
   it("anon não tem EXECUTE nas duas funções; o expurgo também é fechado a authenticated", () => {
     expect(
       booleano(
-        `select has_function_privilege('anon', 'public.fn_definir_aviso_de_agendamento(uuid,boolean,uuid,text,boolean,boolean)', 'EXECUTE')::text`,
+        `select has_function_privilege('anon', 'public.fn_definir_aviso_de_agendamento(uuid,boolean,uuid,text,boolean,boolean,text)', 'EXECUTE')::text`,
       ),
     ).toBe(false);
     for (const papel of ["anon", "authenticated"]) {

@@ -13,6 +13,7 @@ import type { EstadoDaTelaDoAvisoDeAgendamento } from "@/lib/agenda/tela-do-avis
 import { apiClient } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/types";
 import type { MotivoDoTeste } from "@/lib/escalacao/aviso-de-teste";
+import type { GrupoDoNumero } from "@/lib/grupos/servico";
 
 export const CHAVE_DO_AVISO_DE_AGENDAMENTO = ["agenda-aviso-de-agendamento"] as const;
 
@@ -44,9 +45,23 @@ export interface EntradaDoSalvarAvisoDeAgendamento {
   usa_numero_do_aviso_de_caso: boolean;
   channel_session_id?: string | null;
   telefone?: string | null;
+  grupo?: string | null;
   ligado: boolean;
   /** `true` = "eu sei que esse número é um cliente meu, e quero mesmo assim". */
   confirma_contato?: boolean;
+}
+
+/** Os grupos da conexão que envia — para escolher o grupo que também recebe. */
+export function useGruposDaConexao(channelSessionId: string | null) {
+  return useQuery({
+    queryKey: ["agenda-aviso-grupos", channelSessionId],
+    enabled: Boolean(channelSessionId),
+    retry: false,
+    queryFn: () =>
+      apiClient
+        .get<{ data: GrupoDoNumero[] }>(`/api/v1/channel-sessions/${channelSessionId}/groups`)
+        .then((r) => r.data),
+  });
 }
 
 export function useSalvarAvisoDeAgendamento() {
