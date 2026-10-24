@@ -33,7 +33,7 @@ export type StatusDaEntregaDeAgendamento = (typeof STATUS_DA_ENTREGA_DE_AGENDAME
 export const TIPOS_DA_ENTREGA_DE_AGENDAMENTO = ["aviso", "resumo"] as const;
 export type TipoDaEntregaDeAgendamento = (typeof TIPOS_DA_ENTREGA_DE_AGENDAMENTO)[number];
 
-/** Para onde a entrega foi: o número do dono ou o grupo da equipe (migration 0760). */
+/** Para onde a entrega foi: o número do dono ou o grupo da equipe (migration 0767). */
 export const ALVOS_DA_ENTREGA_DE_AGENDAMENTO = ["numero", "grupo"] as const;
 export type AlvoDaEntregaDeAgendamento = (typeof ALVOS_DA_ENTREGA_DE_AGENDAMENTO)[number];
 

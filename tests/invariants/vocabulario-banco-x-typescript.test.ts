@@ -431,7 +431,7 @@ const PARES: Array<{
   {
     tabela: "entregas_de_aviso_de_agendamento",
     coluna: "alvo",
-    // Migration 0760: o número do dono ou o grupo da equipe.
+    // Migration 0767: o número do dono ou o grupo da equipe.
     arquivo: "lib/agenda/vocabulario-do-aviso-de-agendamento.ts",
     simbolo: "ALVOS_DA_ENTREGA_DE_AGENDAMENTO",
   },

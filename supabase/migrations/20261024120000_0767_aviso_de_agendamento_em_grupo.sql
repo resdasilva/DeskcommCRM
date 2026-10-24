@@ -1,6 +1,6 @@
 -- manifest: aviso de agendamento também num grupo do WhatsApp — `config_aviso_de_agendamento.grupo_destino` (chatId de um grupo da mesma conexão, destino extra), `entregas_de_aviso_de_agendamento.alvo` ('numero' | 'grupo') com as duas `unique` passando a ser por destino, e `fn_definir_aviso_de_agendamento` ganha `p_grupo`; aditiva, linhas antigas viram `alvo = 'numero'`.
 -- ═══════════════════════════════════════════════════════════════════════════
--- 0760 — O aviso de agendamento também vai para um grupo do WhatsApp.
+-- 0767 — O aviso de agendamento também vai para um grupo do WhatsApp.
 --
 -- Quem trabalha em equipe quer ver a agenda num grupo da empresa, sem repassar
 -- mensagem. O grupo é destino EXTRA: o número continua como era, e cada
