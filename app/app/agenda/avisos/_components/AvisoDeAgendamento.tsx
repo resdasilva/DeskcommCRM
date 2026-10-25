@@ -37,6 +37,12 @@ import {
 } from "@/hooks/agenda/useAvisoDeAgendamento";
 import { useTelefoneExemplo } from "@/hooks/contacts/useTelefoneExemplo";
 import { useT } from "@/hooks/i18n/useT";
+import {
+  SEM_GRUPO,
+  conexaoQueEnviaDoRascunho,
+  mudarRascunhoDoAviso,
+  type RascunhoDoAvisoDeAgendamento,
+} from "@/lib/agenda/rascunho-do-aviso-de-agendamento";
 import type { EstadoDaTelaDoAvisoDeAgendamento } from "@/lib/agenda/tela-do-aviso-de-agendamento";
 import {
   FRASE_DO_STATUS_DE_AGENDAMENTO,
@@ -56,17 +62,7 @@ const TITULO_DO_EVENTO: Record<string, string> = {
   "appointment.cancelled": "Cancelado",
 };
 
-interface Rascunho {
-  usaNumeroDoCaso: boolean;
-  canal: string;
-  telefone: string;
-  /** `SEM_GRUPO` = nenhum grupo. */
-  grupo: string;
-  ligado: boolean;
-}
-
-/** O `Select` não aceita valor vazio: este é o "nenhum grupo". */
-const SEM_GRUPO = "sem-grupo";
+type Rascunho = RascunhoDoAvisoDeAgendamento;
 
 function rascunhoDoEstado(estado: EstadoDaTelaDoAvisoDeAgendamento): Rascunho {
   if (!estado.config) {
@@ -136,8 +132,11 @@ function FormularioDoAviso({ estado }: { estado: EstadoDaTelaDoAvisoDeAgendament
   const podeSalvar = destinoOk && !salvar.isPending;
   const jaSalvo = estado.config !== null;
   const conexaoDoCaso = estado.conexoes.find((c) => c.id === estado.aviso_de_caso?.channel_session_id);
-  const conexaoQueEnvia = usaCaso ? (estado.aviso_de_caso?.channel_session_id ?? null) : rascunho.canal || null;
+  const conexaoQueEnvia = conexaoQueEnviaDoRascunho(rascunho, estado.aviso_de_caso);
   const grupos = useGruposDaConexao(conexaoQueEnvia);
+  // Trocar a conexão que envia zera o grupo: ele era da conexão anterior (R1, issue #1).
+  const mudar = (mudanca: Partial<Rascunho>) =>
+    setRascunho((r) => mudarRascunhoDoAviso(r, mudanca, estado.aviso_de_caso));
 
   async function enviar(confirma: boolean) {
     try {
@@ -186,7 +185,7 @@ function FormularioDoAviso({ estado }: { estado: EstadoDaTelaDoAvisoDeAgendament
           id="usa-numero-do-caso"
           checked={usaCaso}
           disabled={!temAvisoDeCaso || salvar.isPending}
-          onCheckedChange={(v) => setRascunho((r) => ({ ...r, usaNumeroDoCaso: v }))}
+          onCheckedChange={(v) => mudar({ usaNumeroDoCaso: v })}
           aria-label={t("Usar o mesmo número do aviso de caso")}
         />
         <div className="space-y-1">
@@ -209,7 +208,7 @@ function FormularioDoAviso({ estado }: { estado: EstadoDaTelaDoAvisoDeAgendament
             <Label htmlFor="conexao">{t("Conexão que envia os avisos")}</Label>
             <Select
               value={rascunho.canal}
-              onValueChange={(v) => setRascunho((r) => ({ ...r, canal: v }))}
+              onValueChange={(v) => mudar({ canal: v })}
               disabled={oferecidas.length === 0}
             >
               <SelectTrigger id="conexao" className="w-full sm:w-96">
@@ -272,7 +271,9 @@ function FormularioDoAviso({ estado }: { estado: EstadoDaTelaDoAvisoDeAgendament
                   {g.subject ?? g.chatId}
                 </SelectItem>
               ))}
-            {rascunho.grupo !== SEM_GRUPO && !grupos.data?.some((g) => g.chatId === rascunho.grupo) ? (
+            {rascunho.grupo !== SEM_GRUPO &&
+            rascunho.grupo === estado.config?.grupo &&
+            !grupos.data?.some((g) => g.chatId === rascunho.grupo) ? (
               <SelectItem value={rascunho.grupo}>{t("Grupo salvo")}</SelectItem>
             ) : null}
           </SelectContent>
