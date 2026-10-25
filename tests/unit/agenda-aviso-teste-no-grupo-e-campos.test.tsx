@@ -111,6 +111,33 @@ describe("'Enviar teste' diz para onde foi", () => {
     expect(toast.error).toHaveBeenCalledTimes(1);
     expect(String(toast.error.mock.calls[0]?.[0])).toMatch(/^O teste não chegou ao grupo\. /);
   });
+
+  // QA v3: o número não saiu e o grupo saiu — a tela não pode esconder o
+  // grupo atrás do erro do número, nem dizer "Enviado para" um número que não recebeu.
+  it("número que não saiu e grupo que saiu: o erro do número e o envio ao grupo aparecem os dois", async () => {
+    const r: ResultadoDoTesteDeAgendamento = {
+      enviado: false,
+      codigo: "falha_no_envio",
+      grupo: { enviado: true },
+    };
+    testar.mockResolvedValue(r);
+    resultado.atual = r;
+    montar();
+
+    fireEvent.click(screen.getByRole("button", { name: /Enviar teste/ }));
+    await waitFor(() =>
+      expect(toast.success).toHaveBeenCalledWith("Aviso de teste enviado ao grupo. Confira o WhatsApp."),
+    );
+    expect(toast.error).toHaveBeenCalledTimes(1);
+    expect(String(toast.error.mock.calls[0]?.[0])).not.toMatch(/grupo/);
+    expect(screen.getByTestId("teste-enviado-para").textContent).toBe("Enviado para o grupo Equipe da agenda");
+  });
+
+  it("controle: sem grupo salvo, a linha fala só do número", () => {
+    resultado.atual = { enviado: true, destinoMascarado: "••••6398", grupo: null };
+    montar(estado({ grupo: null }));
+    expect(screen.getByTestId("teste-enviado-para").textContent).toBe("Enviado para ••••6398");
+  });
 });
 
 describe("o número sem +55 ganha um aviso que não bloqueia", () => {
@@ -142,6 +169,17 @@ describe("o botão 'Receber avisos' travado diz o que falta", () => {
     montar(estado({ telefone: "+55319" }));
     expect(screen.getByTestId("o-que-falta-para-ligar").textContent).toBe(
       "Para ligar, preencha o número completo que recebe os avisos.",
+    );
+  });
+
+  it("número completo e nenhuma conexão escolhida: falta só a conexão", () => {
+    montar(estado({ channel_session_id: null, grupo: null }));
+    expect(screen.getByRole("switch", { name: "Receber avisos de agendamento no WhatsApp" })).toHaveProperty(
+      "disabled",
+      true,
+    );
+    expect(screen.getByTestId("o-que-falta-para-ligar").textContent).toBe(
+      "Para ligar, escolha a conexão que envia os avisos.",
     );
   });
 
