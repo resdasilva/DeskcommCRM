@@ -41,6 +41,8 @@ import {
   SEM_GRUPO,
   conexaoQueEnviaDoRascunho,
   mudarRascunhoDoAviso,
+  numeroPareceDeForaDoBrasil,
+  oQueFaltaParaLigar,
   type RascunhoDoAvisoDeAgendamento,
 } from "@/lib/agenda/rascunho-do-aviso-de-agendamento";
 import type { EstadoDaTelaDoAvisoDeAgendamento } from "@/lib/agenda/tela-do-aviso-de-agendamento";
@@ -128,7 +130,12 @@ function FormularioDoAviso({ estado }: { estado: EstadoDaTelaDoAvisoDeAgendament
   const temAvisoDeCaso = estado.aviso_de_caso !== null;
   const usaCaso = rascunho.usaNumeroDoCaso && temAvisoDeCaso;
   const telefoneOk = telefoneDeAvisoValido(rascunho.telefone);
-  const destinoOk = usaCaso || (oferecidas.some((c) => c.id === rascunho.canal) && telefoneOk);
+  const falta = oQueFaltaParaLigar({
+    usaNumeroDoCaso: usaCaso,
+    conexaoOferecida: oferecidas.some((c) => c.id === rascunho.canal),
+    telefoneOk,
+  });
+  const destinoOk = falta === null;
   const podeSalvar = destinoOk && !salvar.isPending;
   const jaSalvo = estado.config !== null;
   const conexaoDoCaso = estado.conexoes.find((c) => c.id === estado.aviso_de_caso?.channel_session_id);
@@ -158,21 +165,29 @@ function FormularioDoAviso({ estado }: { estado: EstadoDaTelaDoAvisoDeAgendament
     }
   }
 
+  const fraseDoMotivo = (codigo: string | undefined) =>
+    codigo === "espacamento"
+      ? t(FRASE_DO_ESPACAMENTO)
+      : codigo && codigo in FRASE_DO_ERRO_DO_AVISO
+        ? t(FRASE_DO_ERRO_DO_AVISO[codigo as keyof typeof FRASE_DO_ERRO_DO_AVISO])
+        : t("O aviso de teste não saiu.");
+
   async function mandarTeste() {
     try {
       const r = await testar.mutateAsync();
       if (r.enviado) {
-        toast.success(t("Aviso de teste enviado. Confira o WhatsApp desse número."));
-        return;
+        toast.success(
+          r.grupo?.enviado
+            ? t("Aviso de teste enviado ao número e ao grupo. Confira o WhatsApp.")
+            : t("Aviso de teste enviado. Confira o WhatsApp desse número."),
+        );
+      } else {
+        toast.error(fraseDoMotivo(r.codigo));
+        if (r.grupo?.enviado) toast.success(t("Aviso de teste enviado ao grupo. Confira o WhatsApp."));
       }
-      const codigo = r.codigo;
-      toast.error(
-        codigo === "espacamento"
-          ? t(FRASE_DO_ESPACAMENTO)
-          : codigo && codigo in FRASE_DO_ERRO_DO_AVISO
-            ? t(FRASE_DO_ERRO_DO_AVISO[codigo as keyof typeof FRASE_DO_ERRO_DO_AVISO])
-            : t("O aviso de teste não saiu."),
-      );
+      if (r.grupo && !r.grupo.enviado) {
+        toast.error(`${t("O teste não chegou ao grupo.")} ${fraseDoMotivo(r.grupo.codigo)}`);
+      }
     } catch (erro) {
       toast.error(erro instanceof ApiError ? erro.message : t("Não foi possível mandar o teste agora."));
     }
@@ -248,6 +263,11 @@ function FormularioDoAviso({ estado }: { estado: EstadoDaTelaDoAvisoDeAgendament
                 {t("Esse número ainda não está completo.")}
               </p>
             ) : null}
+            {numeroPareceDeForaDoBrasil(rascunho.telefone, telefoneExemplo) ? (
+              <p className="text-xs text-warning-fg" data-testid="telefone-fora-do-brasil">
+                {t("Esse número não começa com +55. Ele é de fora do Brasil? Se for, pode seguir; se não, comece por +55 e o DDD.")}
+              </p>
+            ) : null}
           </div>
         </>
       ) : null}
@@ -302,6 +322,15 @@ function FormularioDoAviso({ estado }: { estado: EstadoDaTelaDoAvisoDeAgendament
               "Chega o primeiro nome do cliente, o serviço, o dia e a hora, quem atende e de onde veio: IA, equipe ou Google Agenda.",
             )}
           </p>
+          {falta ? (
+            <p className="text-xs text-warning-fg" data-testid="o-que-falta-para-ligar">
+              {falta === "conexao_e_numero"
+                ? t("Para ligar, escolha a conexão que envia e preencha o número que recebe os avisos.")
+                : falta === "conexao"
+                  ? t("Para ligar, escolha a conexão que envia os avisos.")
+                  : t("Para ligar, preencha o número completo que recebe os avisos.")}
+            </p>
+          ) : null}
         </div>
       </div>
 
@@ -333,10 +362,20 @@ function FormularioDoAviso({ estado }: { estado: EstadoDaTelaDoAvisoDeAgendament
           <PaperPlaneTilt className="mr-2 h-4 w-4" />
           {testar.isPending ? t("Enviando…") : t("Enviar teste")}
         </Button>
-        {testar.data?.enviado ? (
-          <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+        {testar.data?.enviado || testar.data?.grupo?.enviado ? (
+          <span className="inline-flex items-center gap-1 text-xs text-muted-foreground" data-testid="teste-enviado-para">
             <CheckCircle className="h-4 w-4" weight="duotone" />
-            {t("Enviado para")} {testar.data.destinoMascarado}
+            {[
+              testar.data.enviado ? `${t("Enviado para")} ${testar.data.destinoMascarado ?? ""}` : null,
+              testar.data.grupo?.enviado
+                ? `${testar.data.enviado ? t("e para o grupo") : t("Enviado para o grupo")} ${
+                    grupos.data?.find((g) => g.chatId === estado.config?.grupo)?.subject ?? ""
+                  }`
+                : null,
+            ]
+              .filter(Boolean)
+              .join(" ")
+              .trim()}
           </span>
         ) : null}
       </div>

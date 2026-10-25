@@ -22,6 +22,8 @@ export interface ResultadoDoTesteDeAgendamento {
   destinoMascarado?: string;
   codigo?: MotivoDoTeste;
   liberaEm?: string;
+  /** O desfecho no grupo salvo; `null` sem grupo (`lib/agenda/teste-do-aviso-de-agendamento.ts`). */
+  grupo: { enviado: boolean; codigo?: MotivoDoTeste; liberaEm?: string } | null;
 }
 
 /** Repete só o que é passageiro (5xx, rede); `4xx` é veredito. */

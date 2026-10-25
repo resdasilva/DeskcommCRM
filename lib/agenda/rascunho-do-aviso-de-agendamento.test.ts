@@ -4,6 +4,8 @@ import {
   SEM_GRUPO,
   conexaoQueEnviaDoRascunho,
   mudarRascunhoDoAviso,
+  numeroPareceDeForaDoBrasil,
+  oQueFaltaParaLigar,
   type RascunhoDoAvisoDeAgendamento,
 } from "./rascunho-do-aviso-de-agendamento";
 
@@ -66,5 +68,51 @@ describe("o grupo escolhido acompanha a conexão que envia (R1, issue #1)", () =
 
   it("sem conexão escolhida não há conexão que envia", () => {
     expect(conexaoQueEnviaDoRascunho(rascunho({ canal: "" }), null)).toBeNull();
+  });
+});
+
+describe("o número sem +55 ganha um aviso que não bloqueia (ajuste do dono, issue #1)", () => {
+  const BRASIL = "+5511999998888";
+
+  it("número que começa com +55 não ganha aviso", () => {
+    expect(numeroPareceDeForaDoBrasil("+5531998966398", BRASIL)).toBe(false);
+  });
+
+  it("número com outro código de país ganha o aviso", () => {
+    expect(numeroPareceDeForaDoBrasil("+15551234567", BRASIL)).toBe(true);
+    expect(numeroPareceDeForaDoBrasil("+351912345678", BRASIL)).toBe(true);
+  });
+
+  it("campo vazio ou com um dígito só ainda não ganha aviso", () => {
+    expect(numeroPareceDeForaDoBrasil("", BRASIL)).toBe(false);
+    expect(numeroPareceDeForaDoBrasil("+5", BRASIL)).toBe(false);
+  });
+
+  it("organização de outro país não vê o aviso do Brasil", () => {
+    expect(numeroPareceDeForaDoBrasil("+351912345678", "+351912345678")).toBe(false);
+  });
+});
+
+describe("o botão travado diz o que falta (ajuste do dono, issue #1)", () => {
+  it("usando o número do aviso de caso, nada falta", () => {
+    expect(oQueFaltaParaLigar({ usaNumeroDoCaso: true, conexaoOferecida: false, telefoneOk: false })).toBeNull();
+  });
+
+  it("sem conexão e sem número, faltam os dois", () => {
+    expect(oQueFaltaParaLigar({ usaNumeroDoCaso: false, conexaoOferecida: false, telefoneOk: false })).toBe(
+      "conexao_e_numero",
+    );
+  });
+
+  it("só a conexão falta", () => {
+    expect(oQueFaltaParaLigar({ usaNumeroDoCaso: false, conexaoOferecida: false, telefoneOk: true })).toBe("conexao");
+  });
+
+  it("só o número falta", () => {
+    expect(oQueFaltaParaLigar({ usaNumeroDoCaso: false, conexaoOferecida: true, telefoneOk: false })).toBe("numero");
+  });
+
+  it("com conexão e número, nada falta", () => {
+    expect(oQueFaltaParaLigar({ usaNumeroDoCaso: false, conexaoOferecida: true, telefoneOk: true })).toBeNull();
   });
 });

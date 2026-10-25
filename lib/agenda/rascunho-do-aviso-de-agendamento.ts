@@ -47,3 +47,29 @@ export function mudarRascunhoDoAviso(
     conexaoQueEnviaDoRascunho(proximo, avisoDeCaso);
   return trocouConexao ? { ...proximo, grupo: SEM_GRUPO } : proximo;
 }
+
+/**
+ * Aviso, SEM bloquear: o número não começa com +55 numa organização do Brasil.
+ * Número de fora do país é válido; o aviso só pergunta, porque o engano comum é
+ * esquecer o 55. Organização de outro país (exemplo sem +55) não vê o aviso.
+ */
+export function numeroPareceDeForaDoBrasil(telefone: string, telefoneExemplo: string): boolean {
+  if (!telefoneExemplo.startsWith("+55")) return false;
+  const digitos = telefone.replace(/\D/g, "");
+  return digitos.length >= 2 && !digitos.startsWith("55");
+}
+
+/** O que falta para o botão "Receber avisos" destravar; `null` = nada falta. */
+export type OQueFaltaParaLigar = "conexao_e_numero" | "conexao" | "numero" | null;
+
+export function oQueFaltaParaLigar(fatos: {
+  usaNumeroDoCaso: boolean;
+  conexaoOferecida: boolean;
+  telefoneOk: boolean;
+}): OQueFaltaParaLigar {
+  if (fatos.usaNumeroDoCaso) return null;
+  if (!fatos.conexaoOferecida && !fatos.telefoneOk) return "conexao_e_numero";
+  if (!fatos.conexaoOferecida) return "conexao";
+  if (!fatos.telefoneOk) return "numero";
+  return null;
+}
