@@ -51,6 +51,13 @@ const corpo = z
       .regex(/^\+[1-9][0-9]{7,14}$/)
       .nullable()
       .optional(),
+    /** Um grupo da mesma conexão, destino EXTRA; `null` tira o grupo. */
+    grupo: z
+      .string()
+      .trim()
+      .regex(/^[\d-]+@g\.us$/)
+      .nullable()
+      .optional(),
     ligado: z.boolean(),
     /** `true` = "eu sei que este número é um cliente meu, e quero mesmo assim". */
     confirma_contato: z.boolean().optional(),
@@ -92,6 +99,11 @@ const RECUSAS_DO_RPC = {
     status: 422 as const,
     frase:
       "Esse é um dos números conectados da sua conta. Ele não pode receber os avisos, senão um responde ao outro sem parar.",
+  },
+  aviso_de_agendamento_grupo_invalido: {
+    code: "validation_failed",
+    status: 422 as const,
+    frase: "Esse grupo não é válido. Escolha um grupo da lista.",
   },
   aviso_de_agendamento_numero_de_cliente: {
     code: "aviso_numero_de_cliente",
@@ -147,6 +159,7 @@ export async function PUT(req: NextRequest): Promise<Response> {
       p_telefone: dados.usa_numero_do_aviso_de_caso ? null : (dados.telefone ?? null),
       p_ligado: dados.ligado,
       p_confirma_contato: dados.confirma_contato ?? false,
+      p_grupo: dados.grupo ?? null,
     } as never,
   );
 
@@ -175,6 +188,7 @@ export async function PUT(req: NextRequest): Promise<Response> {
       antes_ligado: Boolean(resultado.antes_ligado),
       depois_ligado: dados.ligado,
       confirmou_contato: dados.confirma_contato ?? false,
+      com_grupo: Boolean(dados.grupo),
     },
   });
 
