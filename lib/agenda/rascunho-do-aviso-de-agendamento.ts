@@ -19,6 +19,10 @@ export interface RascunhoDoAvisoDeAgendamento {
   /** `SEM_GRUPO` = nenhum grupo. */
   grupo: string;
   ligado: boolean;
+  /** Marcar horário pelo grupo (migration 0768); sem grupo é sempre `false`. */
+  marcarPeloGrupo: boolean;
+  /** Quem pode marcar pelo grupo, em `+dígitos` (`./numeros-autorizados.ts`). */
+  numerosAutorizados: string[];
 }
 
 /** O aviso de caso como a tela o vê; `null` quando ainda não tem número. */
@@ -35,7 +39,10 @@ export function conexaoQueEnviaDoRascunho(
   return rascunho.canal || null;
 }
 
-/** Aplica a mudança e zera o grupo quando a conexão que envia deixa de ser a mesma. */
+/**
+ * Aplica a mudança e zera o grupo quando a conexão que envia deixa de ser a
+ * mesma. Sem grupo, "marcar pelo grupo" desliga junto; a lista fica guardada.
+ */
 export function mudarRascunhoDoAviso(
   anterior: RascunhoDoAvisoDeAgendamento,
   mudanca: Partial<RascunhoDoAvisoDeAgendamento>,
@@ -45,7 +52,8 @@ export function mudarRascunhoDoAviso(
   const trocouConexao =
     conexaoQueEnviaDoRascunho(anterior, avisoDeCaso) !==
     conexaoQueEnviaDoRascunho(proximo, avisoDeCaso);
-  return trocouConexao ? { ...proximo, grupo: SEM_GRUPO } : proximo;
+  const resultado = trocouConexao ? { ...proximo, grupo: SEM_GRUPO } : proximo;
+  return resultado.grupo === SEM_GRUPO ? { ...resultado, marcarPeloGrupo: false } : resultado;
 }
 
 /**

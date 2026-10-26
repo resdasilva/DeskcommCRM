@@ -286,7 +286,7 @@ const AUTHENTICATED_PERMITIDO: readonly Excecao[] = [
       "função recusa tudo que não seja admin da própria organização.",
   },
   {
-    fn: "fn_definir_aviso_de_agendamento(uuid,boolean,uuid,text,boolean,boolean,text)",
+    fn: "fn_definir_aviso_de_agendamento(uuid,boolean,uuid,text,boolean,boolean,text,boolean,text[])",
     razao:
       "A ÚNICA porta de escrita de `config_aviso_de_agendamento` (migration 0707) — " +
       "a tabela só tem `grant select` sob RLS de admin. PUT " +
@@ -297,7 +297,9 @@ const AUTHENTICATED_PERMITIDO: readonly Excecao[] = [
       "organização e de número que já é contato sem confirmação. " +
       "tests/invariants/aviso-de-agendamento-escrita.test.ts prova agent e viewer " +
       "recusados, admin aprovado, admin de OUTRA organização recusado, conexão do " +
-      "vizinho recusada e anon sem EXECUTE.",
+      "vizinho recusada e anon sem EXECUTE. Desde a 0768 grava também " +
+      "`marcar_pelo_grupo` (só com grupo) e `numeros_autorizados` (E.164, sem " +
+      "repetição), com prova no mesmo arquivo.",
   },
   {
     fn: "fn_vocabulario_de_tags_operar(uuid,text,text,text,text)",

@@ -58,6 +58,13 @@ const corpo = z
       .regex(/^[\d-]+@g\.us$/)
       .nullable()
       .optional(),
+    /** Marcar horário pelo grupo (0768). Ausente = manter o que está salvo. */
+    marcar_pelo_grupo: z.boolean().optional(),
+    /** Quem pode marcar pelo grupo, já normalizado pela tela. Ausente = manter. */
+    numeros_autorizados: z
+      .array(z.string().trim().regex(/^\+[1-9][0-9]{7,14}$/))
+      .max(100)
+      .optional(),
     ligado: z.boolean(),
     /** `true` = "eu sei que este número é um cliente meu, e quero mesmo assim". */
     confirma_contato: z.boolean().optional(),
@@ -104,6 +111,21 @@ const RECUSAS_DO_RPC = {
     code: "validation_failed",
     status: 422 as const,
     frase: "Esse grupo não é válido. Escolha um grupo da lista.",
+  },
+  aviso_de_agendamento_marcar_sem_grupo: {
+    code: "validation_failed",
+    status: 422 as const,
+    frase: "Para marcar pelo grupo, escolha antes o grupo que recebe os avisos.",
+  },
+  aviso_de_agendamento_numero_autorizado_invalido: {
+    code: "validation_failed",
+    status: 422 as const,
+    frase: "Um dos números autorizados não é válido. Use o código do país, por exemplo +55 31 99999-8888.",
+  },
+  aviso_de_agendamento_numero_autorizado_repetido: {
+    code: "validation_failed",
+    status: 422 as const,
+    frase: "Esse número já está na lista de quem pode marcar.",
   },
   aviso_de_agendamento_numero_de_cliente: {
     code: "aviso_numero_de_cliente",
@@ -160,6 +182,8 @@ export async function PUT(req: NextRequest): Promise<Response> {
       p_ligado: dados.ligado,
       p_confirma_contato: dados.confirma_contato ?? false,
       p_grupo: dados.grupo ?? null,
+      p_marcar_pelo_grupo: dados.marcar_pelo_grupo ?? null,
+      p_numeros_autorizados: dados.numeros_autorizados ?? null,
     } as never,
   );
 
@@ -189,6 +213,9 @@ export async function PUT(req: NextRequest): Promise<Response> {
       depois_ligado: dados.ligado,
       confirmou_contato: dados.confirma_contato ?? false,
       com_grupo: Boolean(dados.grupo),
+      // A lista entra só como CONTAGEM, pela mesma razão do número mascarado.
+      marcar_pelo_grupo: dados.marcar_pelo_grupo ?? null,
+      numeros_autorizados: dados.numeros_autorizados?.length ?? null,
     },
   });
 

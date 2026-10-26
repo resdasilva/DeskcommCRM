@@ -48,6 +48,9 @@ export interface EntradaDoSalvarAvisoDeAgendamento {
   channel_session_id?: string | null;
   telefone?: string | null;
   grupo?: string | null;
+  /** Ausente = manter o que está salvo (migration 0768). */
+  marcar_pelo_grupo?: boolean;
+  numeros_autorizados?: string[];
   ligado: boolean;
   /** `true` = "eu sei que esse número é um cliente meu, e quero mesmo assim". */
   confirma_contato?: boolean;
