@@ -47,6 +47,8 @@ function estado(): EstadoDaTelaDoAvisoDeAgendamento {
       channel_session_id: CONEXAO_PROPRIA,
       telefone: "+5531998966398",
       grupo: GRUPO_DA_PROPRIA,
+      marcar_pelo_grupo: false,
+      numeros_autorizados: [],
       ligado: true,
       atualizado_em: "2026-10-25T12:00:00.000Z",
     },
@@ -92,6 +94,8 @@ describe("o grupo do aviso acompanha a conexão que envia", () => {
       usa_numero_do_aviso_de_caso: false,
       channel_session_id: CONEXAO_PROPRIA,
       grupo: GRUPO_DA_PROPRIA,
+      marcar_pelo_grupo: false,
+      numeros_autorizados: [],
     });
   });
 

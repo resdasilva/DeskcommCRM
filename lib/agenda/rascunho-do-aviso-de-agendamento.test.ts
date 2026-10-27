@@ -20,6 +20,8 @@ function rascunho(
     telefone: "+5511999990000",
     grupo: "120363000000000001@g.us",
     ligado: true,
+    marcarPeloGrupo: false,
+    numerosAutorizados: [],
     ...parcial,
   };
 }
@@ -114,5 +116,23 @@ describe("o botão travado diz o que falta (ajuste do dono, issue #1)", () => {
 
   it("com conexão e número, nada falta", () => {
     expect(oQueFaltaParaLigar({ usaNumeroDoCaso: false, conexaoOferecida: true, telefoneOk: true })).toBeNull();
+  });
+});
+
+describe("marcar pelo grupo depende do grupo (issue #4)", () => {
+  it("tirar o grupo desliga a marcação e guarda a lista", () => {
+    const antes = rascunho({ marcarPeloGrupo: true, numerosAutorizados: ["+5531991110000"] });
+    const depois = mudarRascunhoDoAviso(antes, { grupo: SEM_GRUPO }, CASO);
+    expect(depois.marcarPeloGrupo).toBe(false);
+    expect(depois.numerosAutorizados).toEqual(["+5531991110000"]);
+  });
+
+  it("trocar a conexão zera o grupo e desliga a marcação", () => {
+    const depois = mudarRascunhoDoAviso(rascunho({ marcarPeloGrupo: true }), { canal: "conexao-b" }, CASO);
+    expect(depois.marcarPeloGrupo).toBe(false);
+  });
+
+  it("com o mesmo grupo, ligar a marcação fica ligado", () => {
+    expect(mudarRascunhoDoAviso(rascunho(), { marcarPeloGrupo: true }, CASO).marcarPeloGrupo).toBe(true);
   });
 });

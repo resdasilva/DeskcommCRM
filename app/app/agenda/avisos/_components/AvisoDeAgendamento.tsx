@@ -55,6 +55,8 @@ import { normalizarTelefoneDeAviso, telefoneDeAvisoValido } from "@/lib/escalaca
 import { FRASE_DO_ERRO_DO_AVISO } from "@/lib/escalacao/vocabulario-do-aviso";
 import { CheckCircle, PaperPlaneTilt, WarningOctagon } from "@/lib/ui/icons";
 
+import { MarcarPeloGrupo } from "./MarcarPeloGrupo";
+
 const FRASE_DO_ESPACAMENTO =
   "Este número mandou uma mensagem agora há pouco. O WhatsApp exige um intervalo entre elas — tente de novo em alguns segundos.";
 
@@ -68,7 +70,15 @@ type Rascunho = RascunhoDoAvisoDeAgendamento;
 
 function rascunhoDoEstado(estado: EstadoDaTelaDoAvisoDeAgendamento): Rascunho {
   if (!estado.config) {
-    return { usaNumeroDoCaso: estado.aviso_de_caso !== null, canal: "", telefone: "", grupo: SEM_GRUPO, ligado: false };
+    return {
+      usaNumeroDoCaso: estado.aviso_de_caso !== null,
+      canal: "",
+      telefone: "",
+      grupo: SEM_GRUPO,
+      ligado: false,
+      marcarPeloGrupo: false,
+      numerosAutorizados: [],
+    };
   }
   return {
     usaNumeroDoCaso: estado.config.usa_numero_do_aviso_de_caso,
@@ -76,6 +86,8 @@ function rascunhoDoEstado(estado: EstadoDaTelaDoAvisoDeAgendamento): Rascunho {
     telefone: estado.config.telefone ?? "",
     grupo: estado.config.grupo ?? SEM_GRUPO,
     ligado: estado.config.ligado,
+    marcarPeloGrupo: estado.config.marcar_pelo_grupo,
+    numerosAutorizados: estado.config.numeros_autorizados,
   };
 }
 
@@ -152,6 +164,8 @@ function FormularioDoAviso({ estado }: { estado: EstadoDaTelaDoAvisoDeAgendament
         ...(usaCaso ? {} : { channel_session_id: rascunho.canal, telefone: rascunho.telefone }),
         grupo: rascunho.grupo === SEM_GRUPO ? null : rascunho.grupo,
         ligado: rascunho.ligado,
+        marcar_pelo_grupo: rascunho.grupo !== SEM_GRUPO && rascunho.marcarPeloGrupo,
+        numeros_autorizados: rascunho.numerosAutorizados,
         ...(confirma ? { confirma_contato: true } : {}),
       });
       setConfirmarContato(null);
@@ -276,7 +290,7 @@ function FormularioDoAviso({ estado }: { estado: EstadoDaTelaDoAvisoDeAgendament
         <Label htmlFor="grupo">{t("Grupo do WhatsApp que também recebe os avisos")}</Label>
         <Select
           value={rascunho.grupo}
-          onValueChange={(v) => setRascunho((r) => ({ ...r, grupo: v }))}
+          onValueChange={(v) => mudar({ grupo: v })}
           disabled={!conexaoQueEnvia || grupos.isLoading}
         >
           <SelectTrigger id="grupo" className="w-full sm:w-96" data-testid="grupo-do-aviso">
@@ -304,6 +318,16 @@ function FormularioDoAviso({ estado }: { estado: EstadoDaTelaDoAvisoDeAgendament
             : t("Opcional. A equipe vê no grupo os mesmos avisos e o resumo das 7h, sem ninguém repassar.")}
         </p>
       </div>
+
+      <MarcarPeloGrupo
+        temGrupo={rascunho.grupo !== SEM_GRUPO}
+        ligado={rascunho.marcarPeloGrupo}
+        numeros={rascunho.numerosAutorizados}
+        desabilitado={salvar.isPending}
+        telefoneExemplo={telefoneExemplo}
+        onLigado={(v) => mudar({ marcarPeloGrupo: v })}
+        onNumeros={(numerosAutorizados) => mudar({ numerosAutorizados })}
+      />
 
       <div className="flex items-start gap-3 rounded-lg border p-3">
         <Switch

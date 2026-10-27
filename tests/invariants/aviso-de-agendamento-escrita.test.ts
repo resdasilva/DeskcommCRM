@@ -241,7 +241,7 @@ describe("0707 — fn_definir_aviso_de_agendamento é a única porta", () => {
   it("anon não tem EXECUTE nas duas funções; o expurgo também é fechado a authenticated", () => {
     expect(
       booleano(
-        `select has_function_privilege('anon', 'public.fn_definir_aviso_de_agendamento(uuid,boolean,uuid,text,boolean,boolean,text)', 'EXECUTE')::text`,
+        `select has_function_privilege('anon', 'public.fn_definir_aviso_de_agendamento(uuid,boolean,uuid,text,boolean,boolean,text,boolean,text[])', 'EXECUTE')::text`,
       ),
     ).toBe(false);
     for (const papel of ["anon", "authenticated"]) {
@@ -310,6 +310,74 @@ describe("0767 — o grupo é destino extra, com entrega própria", () => {
   it("o histórico do grupo segue a mesma RLS: o vizinho não lê", () => {
     expect(contaComoMembro(ADMIN_B, `${ENTREGAS} where organization_id = '${ORG_A}' and alvo = 'grupo'`)).toBe(0);
     expect(contaComoMembro(GESTOR_A, `${ENTREGAS} where alvo = 'grupo'`)).toBe(2);
+  });
+});
+
+describe("0768 — marcar pelo grupo e quem pode marcar", () => {
+  const GRUPO_A = "120363000000000768@g.us";
+  const GRUPO_B = "120363000000000769@g.us";
+  const definirMarcacao = (org: string, grupo: string | null, marcar: string, numeros: string) =>
+    `select public.fn_definir_aviso_de_agendamento('${org}', true, null, null, true, false, ${
+      grupo === null ? "null" : `'${grupo}'`
+    }, ${marcar}, ${numeros});`;
+  const colunas = (org: string) =>
+    valor(
+      `select marcar_pelo_grupo::text || ' ' || array_to_string(numeros_autorizados, ',')
+         from public.config_aviso_de_agendamento where organization_id = '${org}'`,
+    );
+
+  it("CONTROLE POSITIVO: organização nova nasce com a marcação desligada e a lista vazia", () => {
+    expect(colunas(ORG_B)).toBe("false");
+  });
+
+  it("o admin liga com grupo e grava a lista; `null` mantém o que está salvo", () => {
+    sql(`${comoMembro(ADMIN_A)}
+${definirMarcacao(ORG_A, GRUPO_A, "true", "array['+5531911110000','+5531922220000']")}`);
+    expect(colunas(ORG_A)).toBe("true +5531911110000,+5531922220000");
+    sql(`${comoMembro(ADMIN_A)}
+${definirMarcacao(ORG_A, GRUPO_A, "null", "null")}`);
+    expect(colunas(ORG_A)).toBe("true +5531911110000,+5531922220000");
+  });
+
+  it("pedir a marcação sem grupo é recusado; tirar o grupo desliga e guarda a lista", () => {
+    expect(erroDe(`${comoMembro(ADMIN_A)}
+${definirMarcacao(ORG_A, null, "true", "null")}`)).toMatch(
+      /aviso_de_agendamento_marcar_sem_grupo/i,
+    );
+    sql(`${comoMembro(ADMIN_A)}
+${definirMarcacao(ORG_A, null, "null", "null")}`);
+    expect(colunas(ORG_A)).toBe("false +5531911110000,+5531922220000");
+  });
+
+  it("número repetido ou fora de E.164 é recusado", () => {
+    expect(
+      erroDe(`${comoMembro(ADMIN_A)}
+${definirMarcacao(ORG_A, GRUPO_A, "true", "array['+5531911110000','+5531911110000']")}`),
+    ).toMatch(/aviso_de_agendamento_numero_autorizado_repetido/i);
+    expect(erroDe(`${comoMembro(ADMIN_A)}
+${definirMarcacao(ORG_A, GRUPO_A, "true", "array['31 91111-0000']")}`)).toMatch(
+      /aviso_de_agendamento_numero_autorizado_invalido/i,
+    );
+  });
+
+  it("`manager` não grava a lista", () => {
+    expect(erroDe(`${comoMembro(GESTOR_A)}
+${definirMarcacao(ORG_A, GRUPO_A, "true", "array['+5531933330000']")}`)).toMatch(
+      /aviso_de_agendamento_forbidden/i,
+    );
+  });
+
+  it("duas organizações: uma não lê nem altera a lista da outra", () => {
+    sql(`${comoMembro(ADMIN_B)}
+${definirMarcacao(ORG_B, GRUPO_B, "true", "array['+5511944440000']")}`);
+    expect(contaComoMembro(ADMIN_B, `${CONFIGS} where organization_id = '${ORG_A}' and cardinality(numeros_autorizados) > 0`)).toBe(0);
+    expect(contaComoMembro(ADMIN_A, `${CONFIGS} where organization_id = '${ORG_B}'`)).toBe(0);
+    expect(erroDe(`${comoMembro(ADMIN_B)}
+${definirMarcacao(ORG_A, GRUPO_A, "true", "array['+5511944440000']")}`)).toMatch(
+      /aviso_de_agendamento_forbidden/i,
+    );
+    expect(colunas(ORG_A)).toBe("false +5531911110000,+5531922220000");
+    expect(colunas(ORG_B)).toBe("true +5511944440000");
   });
 });
 
