@@ -108,6 +108,16 @@ describe("marcar pelo grupo na tela do aviso (issue #4)", () => {
     });
   });
 
+  it("número digitado sem o código do país entra com +55 e vai assim no PUT (issue #5)", async () => {
+    montar(estado({ marcar_pelo_grupo: true }));
+    fireEvent.change(screen.getByLabelText("Quem pode marcar"), { target: { value: "11 98765-4321" } });
+    fireEvent.click(screen.getByRole("button", { name: "Adicionar" }));
+    expect(screen.getByTestId("numeros-autorizados").textContent).toContain("+5511987654321");
+    fireEvent.click(screen.getByRole("button", { name: "Salvar" }));
+    await waitFor(() => expect(salvar).toHaveBeenCalledTimes(1));
+    expect(salvar.mock.calls[0]?.[0]).toMatchObject({ numeros_autorizados: ["+5511987654321"] });
+  });
+
   it("remover tira o número da lista que vai no PUT", async () => {
     montar(estado({ marcar_pelo_grupo: true, numeros_autorizados: ["+5531991110000", "+5511988887777"] }));
     fireEvent.click(screen.getAllByRole("button", { name: "Remover" })[0]!);

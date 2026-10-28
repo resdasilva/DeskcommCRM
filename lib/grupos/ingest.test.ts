@@ -9,7 +9,8 @@ const entrada = (o: Partial<EntradaDeGrupo> = {}): EntradaDeGrupo => ({
   externalId: "ext-1", type: "text", body: "oi", mediaUrl: null, mediaMime: null,
   sentAt: "2026-09-23T12:00:00.000Z", remetente: { name: "Maria", phone: "+5521999990000", lid: null }, rawType: "chat", ...o,
 });
-function db(grupo: Awaited<ReturnType<IngestDeGrupoDb["grupoLigado"]>>, dup = false) {
+type Marcacao = Awaited<ReturnType<IngestDeGrupoDb["marcacaoPeloGrupo"]>>;
+function db(grupo: Awaited<ReturnType<IngestDeGrupoDb["grupoLigado"]>>, dup = false, marcacao: Marcacao = null) {
   return {
     grupoLigado: vi.fn<IngestDeGrupoDb["grupoLigado"]>(async () => grupo),
     criarContatoDoGrupo: vi.fn<IngestDeGrupoDb["criarContatoDoGrupo"]>(async () => "contato-g"),
@@ -18,6 +19,8 @@ function db(grupo: Awaited<ReturnType<IngestDeGrupoDb["grupoLigado"]>>, dup = fa
     inserirMensagem: vi.fn<IngestDeGrupoDb["inserirMensagem"]>(async () => (dup ? "duplicada" : "ok")),
     marcarConversa: vi.fn<IngestDeGrupoDb["marcarConversa"]>(async () => {}),
     reabrirSeFechada: vi.fn<IngestDeGrupoDb["reabrirSeFechada"]>(async () => {}),
+    marcacaoPeloGrupo: vi.fn<IngestDeGrupoDb["marcacaoPeloGrupo"]>(async () => marcacao),
+    pedirAgendaPeloGrupo: vi.fn<IngestDeGrupoDb["pedirAgendaPeloGrupo"]>(async () => {}),
   } satisfies IngestDeGrupoDb;
 }
 
@@ -110,6 +113,74 @@ describe("gravarMensagemDeGrupo", () => {
       gravarMensagemDeGrupo(d, entrada({ remetente: { name: "M", phone: "lixo", lid: null } })),
     ).resolves.toBe("gravada");
     expect((d.inserirMensagem.mock.calls[0]![0]!.metadata as Record<string, unknown>).group_sender).toBeUndefined();
+  });
+});
+
+describe("pedido de agenda pelo grupo do aviso (issue #5)", () => {
+  const VINCULADO = { id: "g1", subject: "Equipe", contactId: "c", conversationId: "v" };
+  const AVISO = { grupo: "1@g.us", ligado: true, autorizados: ["+5521999990000"] };
+
+  it("número autorizado, no grupo do aviso, com o recurso ligado: exatamente um pedido, com org, grupo, remetente e id externo", async () => {
+    const d = db(VINCULADO, false, AVISO);
+    await expect(gravarMensagemDeGrupo(d, entrada())).resolves.toBe("gravada");
+    expect(d.marcacaoPeloGrupo).toHaveBeenCalledWith(ORG);
+    expect(d.pedirAgendaPeloGrupo).toHaveBeenCalledTimes(1);
+    expect(d.pedirAgendaPeloGrupo).toHaveBeenCalledWith({
+      organizationId: ORG,
+      channelSessionId: SESS,
+      groupChatId: "1@g.us",
+      conversationId: "v",
+      externalId: "ext-1",
+      remetente: "+5521999990000",
+    });
+  });
+
+  it("número NÃO autorizado não gera pedido", async () => {
+    const d = db(VINCULADO, false, AVISO);
+    await gravarMensagemDeGrupo(d, entrada({ remetente: { name: "X", phone: "+5511988887777", lid: null } }));
+    expect(d.pedirAgendaPeloGrupo).not.toHaveBeenCalled();
+  });
+
+  it("OUTRO grupo não gera pedido, mesmo com número autorizado", async () => {
+    const d = db(VINCULADO, false, AVISO);
+    await gravarMensagemDeGrupo(d, entrada({ groupChatId: "2@g.us" }));
+    expect(d.pedirAgendaPeloGrupo).not.toHaveBeenCalled();
+  });
+
+  it("recurso DESLIGADO não gera pedido", async () => {
+    const d = db(VINCULADO, false, { ...AVISO, ligado: false });
+    await gravarMensagemDeGrupo(d, entrada());
+    expect(d.pedirAgendaPeloGrupo).not.toHaveBeenCalled();
+  });
+
+  it("fromMe=true (outbound) não gera pedido e nem lê a configuração", async () => {
+    const d = db(VINCULADO, false, AVISO);
+    await gravarMensagemDeGrupo(d, entrada({ direction: "outbound", remetente: { name: "Eu", phone: "+5521999990000", lid: null } }));
+    expect(d.pedirAgendaPeloGrupo).not.toHaveBeenCalled();
+    expect(d.marcacaoPeloGrupo).not.toHaveBeenCalled();
+  });
+
+  it("a mesma mensagem reentregue pelo WAHA gera um pedido só", async () => {
+    let gravadas = 0;
+    const d = db(VINCULADO, false, AVISO);
+    d.inserirMensagem.mockImplementation(async () => (gravadas++ === 0 ? "ok" : "duplicada"));
+    await expect(gravarMensagemDeGrupo(d, entrada())).resolves.toBe("gravada");
+    await expect(gravarMensagemDeGrupo(d, entrada())).resolves.toBe("duplicada");
+    expect(d.pedirAgendaPeloGrupo).toHaveBeenCalledTimes(1);
+  });
+
+  it("grupo desligado em Conexões continua descartado sem ler o aviso", async () => {
+    const d = db(null, false, AVISO);
+    await expect(gravarMensagemDeGrupo(d, entrada())).resolves.toBe("grupo_desligado");
+    expect(d.marcacaoPeloGrupo).not.toHaveBeenCalled();
+    expect(d.pedirAgendaPeloGrupo).not.toHaveBeenCalled();
+  });
+
+  it("falha ao anotar o pedido não derruba a mensagem já gravada", async () => {
+    const d = db(VINCULADO, false, AVISO);
+    d.pedirAgendaPeloGrupo.mockRejectedValueOnce(new Error("rede"));
+    await expect(gravarMensagemDeGrupo(d, entrada())).resolves.toBe("gravada");
+    expect(d.marcarConversa).toHaveBeenCalled();
   });
 });
 
@@ -257,6 +328,62 @@ describe("criarIngestDeGrupoDb — dois webhooks do mesmo grupo novo terminam nu
     expect(rpcs[0]).toMatchObject({
       fn: "fn_mark_conversation_message",
       args: { p_conv: "v", p_direction: "outbound", p_preview: "oi", p_at: "2026-09-23T12:00:00.000Z" },
+    });
+  });
+});
+
+describe("criarIngestDeGrupoDb — pedido de agenda pelo grupo (issue #5)", () => {
+  it("lê o aviso de agendamento só da própria organização", async () => {
+    const { admin, comandos } = adminDeMentira({
+      leitura: {
+        config_aviso_de_agendamento: {
+          data: { grupo_destino: "1@g.us", marcar_pelo_grupo: true, numeros_autorizados: ["+5521999990000"] },
+          error: null,
+        },
+      },
+    });
+    await expect(criarIngestDeGrupoDb(admin as never).marcacaoPeloGrupo(ORG)).resolves.toEqual({
+      grupo: "1@g.us",
+      ligado: true,
+      autorizados: ["+5521999990000"],
+    });
+    const leitura = comandos.find((c) => c.tabela === "config_aviso_de_agendamento")!;
+    expect(leitura.filtros).toEqual([["organization_id", ORG]]);
+  });
+
+  it("aviso que não existe ou leitura que falhou: sem pedido", async () => {
+    const vazio = adminDeMentira({});
+    await expect(criarIngestDeGrupoDb(vazio.admin as never).marcacaoPeloGrupo(ORG)).resolves.toBeNull();
+    const erro = adminDeMentira({ leitura: { config_aviso_de_agendamento: { data: null, error: { message: "x" } } } });
+    await expect(criarIngestDeGrupoDb(erro.admin as never).marcacaoPeloGrupo(ORG)).resolves.toBeNull();
+  });
+
+  it("o pedido vira uma linha em event_log, na organização do webhook, sem o texto da mensagem", async () => {
+    const { admin, rpcs } = adminDeMentira({});
+    await criarIngestDeGrupoDb(admin as never).pedirAgendaPeloGrupo({
+      organizationId: ORG,
+      channelSessionId: SESS,
+      groupChatId: "1@g.us",
+      conversationId: "v",
+      externalId: "ext-1",
+      remetente: "+5521999990000",
+    });
+    expect(rpcs).toHaveLength(1);
+    expect(rpcs[0]).toEqual({
+      fn: "emit_event",
+      args: {
+        p_event_type: "agenda.group_booking_requested",
+        p_entity_kind: "conversation",
+        p_entity_id: "v",
+        p_payload: {
+          channel_session_id: SESS,
+          group_chat_id: "1@g.us",
+          external_id: "ext-1",
+          sender_phone: "+5521999990000",
+        },
+        p_metadata: { source: "grupo_ingest" },
+        p_organization_id: ORG,
+      },
     });
   });
 });

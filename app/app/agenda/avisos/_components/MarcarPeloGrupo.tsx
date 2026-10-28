@@ -16,7 +16,6 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useT } from "@/hooks/i18n/useT";
 import { adicionarNumeroAutorizado, removerNumeroAutorizado } from "@/lib/agenda/numeros-autorizados";
-import { normalizarTelefoneDeAviso } from "@/lib/escalacao/estado-do-aviso";
 
 const FRASE_DA_RECUSA = {
   invalido: "Esse número ainda não está completo. Comece pelo código do país.",
@@ -110,7 +109,10 @@ export function MarcarPeloGrupo({
               value={novo}
               disabled={desabilitado}
               onChange={(e) => {
-                setNovo(normalizarTelefoneDeAviso(e.target.value));
+                // Guarda o que foi digitado: normalizar aqui poria o `+` antes de
+                // saber se a pessoa o digitou, e "11 98765-4321" viraria número dos
+                // EUA. Quem decide o `+55` é `adicionarNumeroAutorizado` (issue #5).
+                setNovo(e.target.value);
                 setRecusa(null);
               }}
               onKeyDown={(e) => {
@@ -121,7 +123,7 @@ export function MarcarPeloGrupo({
               }}
               aria-invalid={recusa !== null}
             />
-            <Button variant="outline" size="sm" disabled={desabilitado || novo === ""} onClick={adicionar}>
+            <Button variant="outline" size="sm" disabled={desabilitado || novo.trim() === ""} onClick={adicionar}>
               {t("Adicionar")}
             </Button>
           </div>

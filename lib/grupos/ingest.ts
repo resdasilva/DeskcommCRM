@@ -6,11 +6,17 @@
  * `message.group_received` para conversa de grupo (migration 0482), e nenhum
  * consumidor de `message.received` — IA, follow-up, campanhas, automações — a vê.
  *
+ * A ÚNICA exceção (issue #5): no grupo do aviso de agendamento, com "marcar pelo
+ * grupo" ligado, a mensagem de um número autorizado é anotada como pedido de agenda
+ * em `event_log` (`agenda.group_booking_requested`). A regra mora em
+ * `lib/agenda/pedido-pelo-grupo.ts`; daqui só sai a anotação, nada fora do banco.
+ *
  * Quem chama é a entrada do canal (o ingest do transporte, em `lib/`): ela lê o payload do
  * provedor, monta a `EntradaDeGrupo` e não sabe mais nada de grupo daqui para baixo.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { ehPedidoDeAgendaPeloGrupo, type MarcacaoPeloGrupo } from "@/lib/agenda/pedido-pelo-grupo";
 import { marcarConversaComMensagem } from "@/lib/channels/marcar-conversa";
 import { logger } from "@/lib/logger";
 import { remetenteDeGrupoSchema, type RemetenteDeGrupo } from "@/lib/messaging/remetente-de-grupo";
@@ -35,6 +41,16 @@ export interface EntradaDeGrupo {
    * dela); o grupo segue a mesma régua para não perder a foto que chegou sem link.
    */
   temMidia?: boolean;
+}
+
+export interface PedidoDeAgendaPeloGrupo {
+  organizationId: string;
+  channelSessionId: string;
+  groupChatId: string;
+  conversationId: string;
+  externalId: string;
+  /** `group_sender.phone` (E.164) de quem pediu. */
+  remetente: string;
 }
 
 export interface IngestDeGrupoDb {
@@ -66,6 +82,10 @@ export interface IngestDeGrupoDb {
     quando: string,
     direction: "inbound" | "outbound",
   ): Promise<void>;
+  /** O grupo do aviso de agendamento, o interruptor e quem pode marcar. `null` = sem aviso. */
+  marcacaoPeloGrupo(org: string): Promise<MarcacaoPeloGrupo | null>;
+  /** Anota o pedido em `event_log`. Nada sai do banco: quem atende é a issue #6. */
+  pedirAgendaPeloGrupo(pedido: PedidoDeAgendaPeloGrupo): Promise<void>;
 }
 
 export async function gravarMensagemDeGrupo(
@@ -115,7 +135,48 @@ export async function gravarMensagemDeGrupo(
   // o vCard vira `Contato: <nome>` em vez do literal ou do cartão cru (#2742).
   const preview = previaDaMensagem(e.body, e.type);
   await db.marcarConversa(e.organizationId, conversationId, preview, e.sentAt, e.direction);
+
+  // Só depois do INSERT que deu certo: a reentrega do WAHA cai em "duplicada"
+  // acima e não chega aqui, então uma mensagem vira no máximo um pedido.
+  const telefone = remetente?.success ? remetente.data.phone : null;
+  if (e.direction === "inbound" && telefone) {
+    await anotarPedidoDeAgenda(db, e, conversationId, telefone);
+  }
   return "gravada";
+}
+
+async function anotarPedidoDeAgenda(
+  db: IngestDeGrupoDb,
+  e: EntradaDeGrupo,
+  conversationId: string,
+  telefone: string,
+): Promise<void> {
+  try {
+    const config = await db.marcacaoPeloGrupo(e.organizationId);
+    const pedido = ehPedidoDeAgendaPeloGrupo(config, {
+      groupChatId: e.groupChatId,
+      direction: e.direction,
+      telefoneDoRemetente: telefone,
+    });
+    if (!pedido) return;
+    await db.pedirAgendaPeloGrupo({
+      organizationId: e.organizationId,
+      channelSessionId: e.channelSessionId,
+      groupChatId: e.groupChatId,
+      conversationId,
+      externalId: e.externalId,
+      remetente: telefone,
+    });
+  } catch (err) {
+    // A mensagem já está gravada e visível na inbox; perder o pedido é menos
+    // grave do que perder a mensagem. Fica o rastro para a pergunta "pedi pelo
+    // grupo e nada aconteceu" ter resposta.
+    logger.warn("[grupos.ingest] pedido de agenda pelo grupo não anotado", {
+      organization_id: e.organizationId,
+      conversation_id: conversationId,
+      causa: err instanceof Error ? err.message : String(err),
+    });
+  }
 }
 
 /** Implementação real. `admin` é service role: toda consulta filtra `organization_id`. */
@@ -281,6 +342,44 @@ export function criarIngestDeGrupoDb(admin: SupabaseClient): IngestDeGrupoDb {
         at: quando,
         canal: "grupo",
       });
+    },
+
+    async marcacaoPeloGrupo(org) {
+      const { data, error } = await admin
+        .from("config_aviso_de_agendamento")
+        .select("grupo_destino, marcar_pelo_grupo, numeros_autorizados")
+        .eq("organization_id", org)
+        .maybeSingle();
+      // Leitura que falhou é "não sei se está ligado": nenhum pedido, como sem o recurso.
+      if (error) {
+        logger.warn("[grupos.ingest] aviso de agendamento não lido; sem pedido pelo grupo", {
+          organization_id: org,
+          causa: error.message,
+        });
+        return null;
+      }
+      const r = data as { grupo_destino: string | null; marcar_pelo_grupo: boolean; numeros_autorizados: string[] | null } | null;
+      return r ? { grupo: r.grupo_destino, ligado: r.marcar_pelo_grupo === true, autorizados: r.numeros_autorizados ?? [] } : null;
+    },
+
+    async pedirAgendaPeloGrupo(p) {
+      // Sem o texto da mensagem no payload: quem atender relê a mensagem pela
+      // chave `(organization_id, external_id)`, e o texto continua sob a RLS e a
+      // cascata de LGPD de `messages`, sem uma cópia solta em `event_log`.
+      const { error } = await admin.rpc("emit_event" as never, {
+        p_event_type: "agenda.group_booking_requested",
+        p_entity_kind: "conversation",
+        p_entity_id: p.conversationId,
+        p_payload: {
+          channel_session_id: p.channelSessionId,
+          group_chat_id: p.groupChatId,
+          external_id: p.externalId,
+          sender_phone: p.remetente,
+        },
+        p_metadata: { source: "grupo_ingest" },
+        p_organization_id: p.organizationId,
+      } as never);
+      if (error) throw new Error(error.message);
     },
   };
 }

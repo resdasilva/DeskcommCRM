@@ -1,0 +1,47 @@
+# suite completa (pnpm test:unit) no head 1ba325f
+⎯⎯⎯⎯⎯⎯ Failed Tests 70 ⎯⎯⎯⎯⎯⎯⎯
+ Test Files  29 failed | 2617 passed | 1 skipped (2647)
+      Tests  70 failed | 28170 passed | 1 expected fail | 1 skipped (28242)
+
+# os 29 arquivos vermelhos, rodados de novo no staging 09876ad (base) e no branch
+## base
+ Test Files  28 failed | 1 passed (29)
+      Tests  69 failed | 124 passed (193)
+## branch
+ Test Files  29 failed (29)
+      Tests  70 failed | 123 passed (193)
+
+# diferença base x branch
+14a15
+> tests/unit/imagens-ok-so-aceita-pulo-declarado.test.ts
+# imagens-ok-so-aceita-pulo-declarado sozinho no branch: 2 passed (timeout de 60s com duas suítes rodando ao mesmo tempo)
+
+# arquivos vermelhos no staging (preexistentes, ambiente Windows)
+tests/unit/admin-rotas-respondem-mfa-required.test.ts
+tests/unit/agent-version-columns-drift.test.ts
+tests/unit/ai-agents.test.ts
+tests/unit/atualizacao-confere-regras-de-isolamento.test.ts
+tests/unit/catalogo-de-ensaio-espelha-o-vocabulario.test.ts
+tests/unit/chip-contraste-da-etiqueta.test.ts
+tests/unit/confianca-do-handoff-nao-e-similaridade.test.ts
+tests/unit/dialog-base-roda-e-tem-teto.test.ts
+tests/unit/e2e-parte-4-fala-com-os-servicos-do-runner.test.ts
+tests/unit/e2e-preparo-tenta-de-novo.test.ts
+tests/unit/e2e-supabase-start-tenta-de-novo.test.ts
+tests/unit/followups-de-demonstracao-sao-possiveis.test.ts
+tests/unit/guarda-da-release-confere-identidade.test.ts
+tests/unit/guarda-da-release-reconhece-o-corte.test.ts
+tests/unit/lgpd-pdf-campos-personalizados.test.ts
+tests/unit/lgpd-pdf-cpf-mascarado.test.ts
+tests/unit/lgpd-pdf-meet.test.ts
+tests/unit/lgpd-pdf-propostas.test.ts
+tests/unit/lgpd-pdf-replies.test.ts
+tests/unit/lgpd-pdf-transcricao.test.ts
+tests/unit/nome-da-agenda-nunca-vai-ao-cliente.test.ts
+tests/unit/populacao-do-proximo-nnnn.test.ts
+tests/unit/rascunho-superado-nao-e-regravado.test.ts
+tests/unit/release-chega-na-lp.test.ts
+tests/unit/servidor-nao-importa-valor-de-modulo-cliente.test.ts
+tests/unit/telas-sem-dado-de-mentira.test.ts
+tests/unit/worker-pid1-drena-envio-em-voo.test.ts
+workers/agent-worker/prazo-do-shutdown-comeca-no-sinal.test.ts
