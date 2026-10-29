@@ -375,7 +375,7 @@ export async function criarDepsDoPedidoPeloGrupo(): Promise<PedidoPeloGrupoDeps>
         action: "agenda.pedido_pelo_grupo_atendido",
         organizationId: entrada.organizationId,
         resourceType: ENTIDADE_DO_AGENDAMENTO,
-        resourceId: entrada.resourceId,
+        resourceId: entrada.appointmentId,
         bypassedRls: true,
         metadata: entrada.metadata,
       });

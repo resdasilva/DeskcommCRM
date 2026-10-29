@@ -338,8 +338,8 @@ describe("pedido de agenda pelo grupo — um pedido, um agendamento", () => {
     await atendePedidoDeAgendaPeloGrupo(t.deps, linha());
     expect(t.audita).toHaveBeenCalledWith({
       organizationId: ORG,
-      resourceId: "apt-novo",
-      metadata: { acao: "marcar", desfecho: "marcado", appointment_id: "apt-novo", conversation_id: "conv-1", respondeu: true },
+      appointmentId: "apt-novo",
+      metadata: { external_id: "wamid-1", acao: "marcar", desfecho: "marcado", appointment_id: "apt-novo", conversation_id: "conv-1", respondeu: true },
     });
     expect(JSON.stringify(t.audita.mock.calls)).not.toContain(DONO);
     expect(JSON.stringify(t.audita.mock.calls)).not.toContain("13 horas");

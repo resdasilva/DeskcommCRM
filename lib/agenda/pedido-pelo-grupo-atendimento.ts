@@ -129,7 +129,8 @@ export interface PedidoPeloGrupoDeps {
   clock: () => Date;
   origemDoDreno: () => "worker" | "request";
   /** Fire-and-forget. Nunca o texto nem o telefone: `api_audit_log` é append-only. */
-  audita(entrada: { organizationId: string; resourceId: string; metadata: Record<string, unknown> }): void;
+  /** `appointmentId` vira `resource_id` (uuid) — `null` quando a decisão não tocou agendamento. */
+  audita(entrada: { organizationId: string; appointmentId: string | null; metadata: Record<string, unknown> }): void;
 }
 
 export interface DesfechoDoPedido {
@@ -206,8 +207,9 @@ export async function atendePedidoDeAgendaPeloGrupo(
   if (recibo.tipo === "executou") {
     deps.audita({
       organizationId: org,
-      resourceId: decisao.appointmentId ?? externalId,
+      appointmentId: decisao.appointmentId,
       metadata: {
+        external_id: externalId,
         acao: decisao.acao,
         desfecho: decisao.desfecho,
         appointment_id: decisao.appointmentId,
