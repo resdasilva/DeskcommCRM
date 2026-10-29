@@ -33,6 +33,7 @@ import {
   crmFindAndBookAppointment,
   crmRescheduleAppointment,
 } from "@/lib/mcp/tools/agendamento";
+import { nomeDoContato } from "@/lib/contacts/rotulo-do-contato";
 import { contactCreateSchema } from "@/lib/schemas/contacts";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { rotuloLocal } from "@/lib/tempo/agora";
@@ -243,7 +244,7 @@ function criarPedidoDb(admin: SupabaseClient): PedidoPeloGrupoDb {
 
     async clientesPorNome(org, nome) {
       // Nome INTEIRO, sem curinga: "Rafael" não pode pegar a "Rafaela".
-      const termo = nome.trim().replace(/[%_\\]/g, "").replace(/[,()]/g, " ");
+      const termo = nome.trim().replace(/[%_\\]/g, "").replace(/[,()"]/g, " ");
       const { data, error } = await admin
         .from("contacts")
         .select("id, name, display_name")
@@ -255,7 +256,7 @@ function criarPedidoDb(admin: SupabaseClient): PedidoPeloGrupoDb {
       if (error) throw new Error(error.message);
       return ((data ?? []) as Array<{ id: string; name: string | null; display_name: string | null }>).map((c) => ({
         id: c.id,
-        nome: c.display_name ?? c.name ?? nome,
+        nome: nomeDoContato(c) ?? nome,
       }));
     },
 
