@@ -326,6 +326,19 @@ describe("pedido de agenda pelo grupo — um pedido, um agendamento", () => {
     expect(t.audita).toHaveBeenCalledTimes(1);
   });
 
+  it("outra rodada com o recibo em curso: adia, sem ler o texto, sem agenda, sem responder e sem auditar", async () => {
+    const t = montar({});
+    vi.mocked(t.db.comRecibo).mockResolvedValueOnce({ tipo: "em_curso" });
+    const d = await atendePedidoDeAgendaPeloGrupo(t.deps, linha());
+
+    expect(d.status).toBe("retry");
+    expect(d.retry_at).toBeDefined();
+    expect(t.lerPedido).not.toHaveBeenCalled();
+    expect(t.agenda.marcar).not.toHaveBeenCalled();
+    expect(t.responder).not.toHaveBeenCalled();
+    expect(t.audita).not.toHaveBeenCalled();
+  });
+
   it("toda leitura e escrita usa a organização da linha do event_log", async () => {
     const t = montar({ clientes: [] });
     await atendePedidoDeAgendaPeloGrupo(t.deps, linha());
