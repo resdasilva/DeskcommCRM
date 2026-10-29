@@ -49,6 +49,7 @@ import {
   horaPadrao,
   type AgendaDoPedido,
   type AgendamentoDoCliente,
+  type ClienteDoPedido,
   type DecisaoDoPedido,
   type DesfechoDaAgenda,
   type DesfechoDoEnvio,
@@ -122,6 +123,33 @@ export function desfechoDaFerramenta(
 }
 
 // ── Portas de produção ───────────────────────────────────────────────────────
+
+/**
+ * Contatos-pessoa da organização cujo `name` ou `display_name` casa com o
+ * padrão. O termo chega sem curinga nem caractere que feche o valor do `.or`
+ * do PostgREST; só `padrao` pode acrescentar o `%`.
+ */
+async function contatosPeloNome(
+  admin: SupabaseClient,
+  org: string,
+  nome: string,
+  padrao: (termo: string) => string,
+): Promise<ClienteDoPedido[]> {
+  const termo = padrao(nome.trim().replace(/[%_*\\]/g, "").replace(/[,()"]/g, " "));
+  const { data, error } = await admin
+    .from("contacts")
+    .select("id, name, display_name")
+    .eq("organization_id", org)
+    .eq("kind", "person")
+    .eq("is_anonymized", false)
+    .or(`name.ilike."${termo}",display_name.ilike."${termo}"`)
+    .limit(10);
+  if (error) throw new Error(error.message);
+  return ((data ?? []) as Array<{ id: string; name: string | null; display_name: string | null }>).map((c) => ({
+    id: c.id,
+    nome: nomeDoContato(c) ?? nome,
+  }));
+}
 
 async function nomesDosProfissionais(admin: SupabaseClient, org: string): Promise<Array<{ id: string; nome: string }>> {
   const { data, error } = await admin
@@ -244,20 +272,12 @@ function criarPedidoDb(admin: SupabaseClient): PedidoPeloGrupoDb {
 
     async clientesPorNome(org, nome) {
       // Nome INTEIRO, sem curinga: "Rafael" não pode pegar a "Rafaela".
-      const termo = nome.trim().replace(/[%_\\]/g, "").replace(/[,()"]/g, " ");
-      const { data, error } = await admin
-        .from("contacts")
-        .select("id, name, display_name")
-        .eq("organization_id", org)
-        .eq("kind", "person")
-        .eq("is_anonymized", false)
-        .or(`name.ilike."${termo}",display_name.ilike."${termo}"`)
-        .limit(10);
-      if (error) throw new Error(error.message);
-      return ((data ?? []) as Array<{ id: string; name: string | null; display_name: string | null }>).map((c) => ({
-        id: c.id,
-        nome: nomeDoContato(c) ?? nome,
-      }));
+      return await contatosPeloNome(admin, org, nome, (termo) => termo);
+    },
+
+    async clientesParecidos(org, nome) {
+      // "Rafael " + sobrenome: o espaço é a fronteira da palavra, então a "Rafaela" segue de fora.
+      return await contatosPeloNome(admin, org, nome, (termo) => `${termo} %`);
     },
 
     async criaCliente(org, nome) {

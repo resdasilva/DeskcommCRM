@@ -114,6 +114,8 @@ export interface PedidoPeloGrupoDb {
   textoDaMensagem(org: string, externalId: string): Promise<string | null>;
   contexto(org: string, agora: Date): Promise<ContextoDaExtracao & { fuso: string }>;
   clientesPorNome(org: string, nome: string): Promise<ClienteDoPedido[]>;
+  /** Quem começa pelo nome pedido seguido de sobrenome ("Rafael" → "Rafael Souza"). */
+  clientesParecidos(org: string, nome: string): Promise<ClienteDoPedido[]>;
   criaCliente(org: string, nome: string): Promise<ClienteDoPedido>;
   /** Os agendamentos `pending`/`confirmed` do cliente que ainda não começaram. */
   agendamentosVivos(org: string, contactId: string, desde: Date): Promise<AgendamentoDoCliente[]>;
@@ -291,6 +293,11 @@ async function marca(
 
   const clientes = await deps.db.clientesPorNome(org, p.cliente!);
   if (clientes.length > 1) return pergunta("marcar", "cliente_ambiguo", textos.clienteAmbiguo(p.cliente!, clientes));
+  if (clientes.length === 0) {
+    // Contato novo só quando ninguém da base pode ser a mesma pessoa.
+    const parecidos = await deps.db.clientesParecidos(org, p.cliente!);
+    if (parecidos.length > 0) return pergunta("marcar", "cliente_parecido", textos.clienteParecido(p.cliente!, parecidos));
+  }
   const cliente = clientes[0] ?? (await deps.db.criaCliente(org, p.cliente!));
 
   const dia = p.dia ?? ctx.hoje;
@@ -323,7 +330,11 @@ async function mexeNoExistente(
   if (acao === "remarcar" && !p.hora) return pergunta(acao, "incompleto", textos.falta(["a hora nova"]));
 
   const clientes = await deps.db.clientesPorNome(org, p.cliente);
-  if (clientes.length === 0) return pergunta(acao, "cliente_desconhecido", textos.semAgendamento(p.cliente));
+  if (clientes.length === 0) {
+    const parecidos = await deps.db.clientesParecidos(org, p.cliente);
+    if (parecidos.length > 0) return pergunta(acao, "cliente_parecido", textos.clienteParecido(p.cliente, parecidos));
+    return pergunta(acao, "cliente_desconhecido", textos.semAgendamento(p.cliente));
+  }
   if (clientes.length > 1) return pergunta(acao, "cliente_ambiguo", textos.clienteAmbiguo(p.cliente, clientes));
   const cliente = clientes[0]!;
 
@@ -331,7 +342,7 @@ async function mexeNoExistente(
   // pista só estreita; nenhuma escolhe sozinha entre dois que sobraram.
   let vivos = await deps.db.agendamentosVivos(org, cliente.id, agora);
   if (p.servico) vivos = vivos.filter((a) => a.servicoSlug === p.servico);
-  if (p.dia_atual) vivos = vivos.filter((a) => diaNoFuso(a.inicio, a.fuso) === p.dia_atual);
+  if (p.dia_atual) vivos = vivos.filter((a) => diaLocalISO(a.inicio, a.fuso) === p.dia_atual);
   if (p.hora_atual) vivos = vivos.filter((a) => horaNoFuso(a.inicio, a.fuso) === horaPadrao(p.hora_atual!));
   if (vivos.length === 0) return pergunta(acao, "sem_agendamento", textos.semAgendamento(cliente.nome));
   if (vivos.length > 1) return pergunta(acao, "agendamento_ambiguo", textos.agendamentoAmbiguo(cliente.nome, vivos));
@@ -339,22 +350,18 @@ async function mexeNoExistente(
 
   if (acao === "cancelar") {
     const r = await deps.agenda.cancelar(org, { agendamento: alvo, motivo: "Cancelado pelo grupo do WhatsApp" });
-    if (!r.ok) return pergunta(acao, r.motivo, textos.recusa(r, horaNoFuso(alvo.inicio, alvo.fuso), diaNoFuso(alvo.inicio, alvo.fuso)));
+    if (!r.ok) return pergunta(acao, r.motivo, textos.recusa(r, horaNoFuso(alvo.inicio, alvo.fuso), diaLocalISO(alvo.inicio, alvo.fuso)));
     return { acao, desfecho: "cancelado", resposta: textos.cancelado(cliente.nome, r), appointmentId: alvo.id };
   }
 
   // Sem dia novo, "muda o Rafael para as 15h" é no MESMO dia do agendamento.
-  const dia = p.dia ?? diaNoFuso(alvo.inicio, alvo.fuso);
+  const dia = p.dia ?? diaLocalISO(alvo.inicio, alvo.fuso);
   const r = await deps.agenda.remarcar(org, { agendamento: alvo, dia, hora: p.hora! });
   if (!r.ok) return pergunta(acao, r.motivo, textos.recusa(r, p.hora!, dia));
   return { acao, desfecho: "remarcado", resposta: textos.remarcado(cliente.nome, r), appointmentId: alvo.id };
 }
 
 // ── Relógio de parede ────────────────────────────────────────────────────────
-
-export function diaNoFuso(instante: Date, fuso: string): string {
-  return diaLocalISO(instante, fuso);
-}
 
 export function horaNoFuso(instante: Date, fuso: string): string {
   const p = partesNoFuso(instante, fuso);
@@ -377,7 +384,7 @@ function diaCurto(dia: string): string {
 const EXEMPLO = "Exemplo: \"Rafael amanhã às 13h, corte\".";
 
 function linhaDoHorario(r: Extract<DesfechoDaAgenda, { ok: true }>): string {
-  const partesDoHorario = [`${diaCurto(diaNoFuso(r.inicio, r.fuso))} às ${horaNoFuso(r.inicio, r.fuso)}`];
+  const partesDoHorario = [`${diaCurto(diaLocalISO(r.inicio, r.fuso))} às ${horaNoFuso(r.inicio, r.fuso)}`];
   if (r.servico) partesDoHorario.push(r.servico);
   if (r.profissional) partesDoHorario.push(`com ${r.profissional}`);
   return partesDoHorario.join(" · ");
@@ -419,13 +426,17 @@ export const textos = {
     const lista = clientes.slice(0, MAXIMO_NA_PERGUNTA).map((c) => c.nome).join(", ");
     return `Há mais de um cliente "${nome}" (${lista}). Mande de novo com o nome completo; não mexi na agenda.`;
   },
+  clienteParecido(nome: string, parecidos: ClienteDoPedido[]): string {
+    const lista = parecidos.slice(0, MAXIMO_NA_PERGUNTA).map((c) => c.nome).join(", ");
+    return `Não achei cliente com o nome exato "${nome}", mas achei ${lista}. Mande de novo com o nome completo (se for cliente novo, com o sobrenome); não mexi na agenda.`;
+  },
   semAgendamento(nome: string): string {
     return `Não achei agendamento futuro de ${nome}; não mexi na agenda.`;
   },
   agendamentoAmbiguo(nome: string, vivos: AgendamentoDoCliente[]): string {
     const lista = vivos
       .slice(0, MAXIMO_NA_PERGUNTA)
-      .map((a) => `${diaCurto(diaNoFuso(a.inicio, a.fuso))} às ${horaNoFuso(a.inicio, a.fuso)}${a.servicoNome ? ` (${a.servicoNome})` : ""}`)
+      .map((a) => `${diaCurto(diaLocalISO(a.inicio, a.fuso))} às ${horaNoFuso(a.inicio, a.fuso)}${a.servicoNome ? ` (${a.servicoNome})` : ""}`)
       .join(", ");
     return `${nome} tem mais de um agendamento: ${lista}. Diga qual (dia e hora); não mexi na agenda.`;
   },

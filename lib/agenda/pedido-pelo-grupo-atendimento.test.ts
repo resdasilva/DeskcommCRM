@@ -66,6 +66,7 @@ function montar(opts: {
   leitura?: LeituraDoPedido | (() => LeituraDoPedido);
   texto?: string | null;
   clientes?: Array<{ id: string; nome: string }>;
+  parecidos?: Array<{ id: string; nome: string }>;
   vivos?: AgendamentoDoCliente[];
   agenda?: Partial<AgendaDoPedido>;
   ligado?: boolean;
@@ -101,6 +102,10 @@ function montar(opts: {
     clientesPorNome: vi.fn(async (org) => {
       vista(org);
       return opts.clientes ?? [{ id: "contato-rafael", nome: "Rafael" }];
+    }),
+    clientesParecidos: vi.fn(async (org) => {
+      vista(org);
+      return opts.parecidos ?? [];
     }),
     criaCliente: vi.fn(async (org, nome) => {
       vista(org);
@@ -183,6 +188,31 @@ describe("pedido de agenda pelo grupo — marcar", () => {
     await atendePedidoDeAgendaPeloGrupo(t.deps, linha());
     expect(t.db.criaCliente).toHaveBeenCalledWith(ORG, "Rafael");
     expect(t.agenda.marcar).toHaveBeenCalledWith(ORG, expect.objectContaining({ contactId: "contato-novo" }));
+  });
+
+  it("nome sem casamento exato mas com parecidos na base: pergunta qual, não cria contato nem marca (R1)", async () => {
+    const t = montar({
+      clientes: [],
+      parecidos: [
+        { id: "c1", nome: "Rafael Souza" },
+        { id: "c2", nome: "Rafael Lima" },
+      ],
+    });
+    const d = await atendePedidoDeAgendaPeloGrupo(t.deps, linha());
+    expect(d.status).toBe("ok");
+    expect(t.db.clientesParecidos).toHaveBeenCalledWith(ORG, "Rafael");
+    expect(t.db.criaCliente).not.toHaveBeenCalled();
+    expect(t.agenda.marcar).not.toHaveBeenCalled();
+    const texto = resposta(t.responder);
+    for (const parte of ["Rafael Souza", "Rafael Lima", "nome completo", "não mexi na agenda"]) expect(texto).toContain(parte);
+  });
+
+  it("um único parecido também vira pergunta: o sistema não adivinha que \"Rafael\" é o Rafael Souza", async () => {
+    const t = montar({ clientes: [], parecidos: [{ id: "c1", nome: "Rafael Souza" }] });
+    await atendePedidoDeAgendaPeloGrupo(t.deps, linha());
+    expect(t.db.criaCliente).not.toHaveBeenCalled();
+    expect(t.agenda.marcar).not.toHaveBeenCalled();
+    expect(resposta(t.responder)).toContain("Rafael Souza");
   });
 
   it("tipo que pede aprovação: diz que reservou e que a equipe confirma, nunca 'marcado'", async () => {
@@ -308,6 +338,20 @@ describe("pedido de agenda pelo grupo — remarcar e cancelar", () => {
     await atendePedidoDeAgendaPeloGrupo(t.deps, linha());
     expect(t.agenda.cancelar).not.toHaveBeenCalled();
     expect(resposta(t.responder)).toContain("Não achei agendamento futuro de Rafael");
+  });
+
+  it("cancelar \"Rafael\" sem casamento exato, com Rafael Souza na base: pergunta qual em vez de dizer que não há agendamento", async () => {
+    const t = montar({
+      clientes: [],
+      parecidos: [{ id: "c1", nome: "Rafael Souza" }],
+      vivos,
+      leitura: { ok: true, bruto: extracao({ acao: "cancelar", cliente: "Rafael" }) },
+    });
+    await atendePedidoDeAgendaPeloGrupo(t.deps, linha());
+    expect(t.agenda.cancelar).not.toHaveBeenCalled();
+    expect(t.db.agendamentosVivos).not.toHaveBeenCalled();
+    expect(resposta(t.responder)).toContain("Rafael Souza");
+    expect(resposta(t.responder)).toContain("nome completo");
   });
 });
 

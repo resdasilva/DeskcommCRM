@@ -63,12 +63,12 @@ describe("clientesPorNome — a consulta de produção", () => {
 
   it("aspas, vírgula, parênteses e curingas do nome não chegam ao filtro .or", async () => {
     const deps = await criarDepsDoPedidoPeloGrupo();
-    await deps.db.clientesPorNome(ORG, ' Ra"fa,el (Zé) 10%_ ');
+    await deps.db.clientesPorNome(ORG, ' Ra"fa,el (Zé) 10%_* ');
     const filtro = String(doMetodo("or")[0]?.args[0]);
     const valores = [...filtro.matchAll(/ilike\."([^"]*)"/g)].map((m) => m[1]);
     expect(valores).toHaveLength(2);
     for (const v of valores) {
-      expect(v).not.toMatch(/[",()%_]/);
+      expect(v).not.toMatch(/[",()%_*]/);
       expect(v).toContain("Ra fa el");
     }
   });
@@ -86,5 +86,25 @@ describe("clientesPorNome — a consulta de produção", () => {
       { id: "c2", nome: "Rafael" },
       { id: "c3", nome: "Rafael" },
     ]);
+  });
+});
+
+describe("clientesParecidos — nome pedido seguido de sobrenome (R1 da revisão)", () => {
+  it("mesma organização e mesmos filtros; o padrão é o nome + espaço + qualquer coisa", async () => {
+    const deps = await criarDepsDoPedidoPeloGrupo();
+    await deps.db.clientesParecidos(ORG, " Rafael ");
+    expect(doMetodo("eq").map((c) => c.args)).toEqual([
+      ["organization_id", ORG],
+      ["kind", "person"],
+      ["is_anonymized", false],
+    ]);
+    // O espaço antes do % deixa a "Rafaela" de fora.
+    expect(doMetodo("or")[0]?.args[0]).toBe('name.ilike."Rafael %",display_name.ilike."Rafael %"');
+  });
+
+  it("o curinga só vem do padrão: o % e o * digitados no grupo são removidos", async () => {
+    const deps = await criarDepsDoPedidoPeloGrupo();
+    await deps.db.clientesParecidos(ORG, "Ra%fa*el_");
+    expect(doMetodo("or")[0]?.args[0]).toBe('name.ilike."Rafael %",display_name.ilike."Rafael %"');
   });
 });

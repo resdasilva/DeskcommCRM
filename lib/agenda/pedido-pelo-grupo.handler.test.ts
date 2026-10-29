@@ -134,6 +134,7 @@ describe("prova em par — o mesmo texto pelo grupo e pela ferramenta direto", (
           profissionais: [{ id: "user-bruno", nome: "Bruno" }],
         }),
         clientesPorNome: async () => [{ id: "contato-rafael", nome: "Rafael" }],
+        clientesParecidos: async () => [],
         criaCliente: async () => {
           throw new Error("não deveria criar");
         },
