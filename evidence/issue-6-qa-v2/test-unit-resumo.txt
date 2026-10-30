@@ -1,0 +1,38 @@
+⎯⎯⎯⎯⎯⎯ Failed Tests 70 ⎯⎯⎯⎯⎯⎯⎯
+ Test Files  29 failed | 2620 passed | 1 skipped (2650)
+      Tests  70 failed | 28210 passed | 1 expected fail | 1 skipped (28282)
+
+# arquivos vermelhos nesta branch
+tests/unit/admin-rotas-respondem-mfa-required.test.ts
+tests/unit/agent-version-columns-drift.test.ts
+tests/unit/ai-agents.test.ts
+tests/unit/atualizacao-confere-regras-de-isolamento.test.ts
+tests/unit/catalogo-de-ensaio-espelha-o-vocabulario.test.ts
+tests/unit/chip-contraste-da-etiqueta.test.ts
+tests/unit/confianca-do-handoff-nao-e-similaridade.test.ts
+tests/unit/dialog-base-roda-e-tem-teto.test.ts
+tests/unit/e2e-parte-4-fala-com-os-servicos-do-runner.test.ts
+tests/unit/e2e-preparo-tenta-de-novo.test.ts
+tests/unit/e2e-supabase-start-tenta-de-novo.test.ts
+tests/unit/followups-de-demonstracao-sao-possiveis.test.ts
+tests/unit/guarda-da-release-confere-identidade.test.ts
+tests/unit/guarda-da-release-reconhece-o-corte.test.ts
+tests/unit/imagens-ok-so-aceita-pulo-declarado.test.ts
+tests/unit/lgpd-pdf-campos-personalizados.test.ts
+tests/unit/lgpd-pdf-cpf-mascarado.test.ts
+tests/unit/lgpd-pdf-meet.test.ts
+tests/unit/lgpd-pdf-propostas.test.ts
+tests/unit/lgpd-pdf-replies.test.ts
+tests/unit/lgpd-pdf-transcricao.test.ts
+tests/unit/nome-da-agenda-nunca-vai-ao-cliente.test.ts
+tests/unit/populacao-do-proximo-nnnn.test.ts
+tests/unit/rascunho-superado-nao-e-regravado.test.ts
+tests/unit/release-chega-na-lp.test.ts
+tests/unit/servidor-nao-importa-valor-de-modulo-cliente.test.ts
+tests/unit/telas-sem-dado-de-mentira.test.ts
+tests/unit/worker-pid1-drena-envio-em-voo.test.ts
+workers/agent-worker/prazo-do-shutdown-comeca-no-sinal.test.ts
+
+# comparado ao QA v1 (2479e53/52e43a9)
+saiu: tests/unit/rotulo-do-contato.test.ts
+entrou: workers/agent-worker/prazo-do-shutdown-comeca-no-sinal.test.ts (SIGTERM no Windows; o PR não toca workers/)

@@ -1,0 +1,9 @@
+     × o conserto fecha o desligamento no prazo, com o tempo MEDIDO de SIGTERM ao exit 183ms
+     × CONTROLE: com o prazo voltando a começar depois dos laços (hoje), o SIGTERM NÃO fecha no prazo 165ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  |cercas| workers/agent-worker/prazo-do-shutdown-comeca-no-sinal.test.ts > ensaio: SIGTERM com laço preso (#2823) > o conserto fecha o desligamento no prazo, com o tempo MEDIDO de SIGTERM ao exit
+AssertionError: saiu como SIGTERM: expected null to be 1 // Object.is equality
+ FAIL  |cercas| workers/agent-worker/prazo-do-shutdown-comeca-no-sinal.test.ts > ensaio: SIGTERM com laço preso (#2823) > CONTROLE: com o prazo voltando a começar depois dos laços (hoje), o SIGTERM NÃO fecha no prazo
+AssertionError: o desligamento de HOJE fechou em 7 ms — se isso aconteceu, o defeito não está reproduzido: expected 7 to be greater than 3500
+ Test Files  1 failed | 2 passed (3)
+      Tests  2 failed | 28 passed (30)

@@ -1295,6 +1295,12 @@ export const AUDIT_ACTIONS = [
   // mesma razão do `ai.case_alert_settings_changed`: `api_audit_log` é
   // append-only e a cascata de LGPD não o alcança.
   "ai.case_alert_settings_removed",
+  // O pedido de agenda escrito no grupo do aviso, atendido (issue #6): uma
+  // linha por DECISÃO (marcou, perguntou, ignorou), com a ação e o desfecho.
+  // Nunca o texto nem o telefone de quem pediu — esta tabela é append-only e a
+  // cascata de LGPD não a alcança. A mutação da agenda tem a própria linha
+  // (`agenda.appointment_*`), gravada pela ferramenta.
+  "agenda.pedido_pelo_grupo_atendido",
 ] as const;
 
 /** Um código de auditoria. Derivado de `AUDIT_ACTIONS` — não redigite a lista. */

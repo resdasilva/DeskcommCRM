@@ -1,0 +1,5 @@
+ ✓ |produto| lib/agenda/pedido-pelo-grupo.prova-em-par.test.ts > prova em par com a ferramenta real — o mesmo pedido pelo grupo e pela ferramenta direto > o dublê de banco filtra: 14:00 sai da lista de livres e 13:00 fica 55ms
+ ✓ |produto| lib/agenda/pedido-pelo-grupo.prova-em-par.test.ts > prova em par com a ferramenta real — o mesmo pedido pelo grupo e pela ferramenta direto > 13:00 livre: os dois lados marcam o MESMO instante, para a mesma org e o mesmo cliente 56ms
+ ✓ |produto| lib/agenda/pedido-pelo-grupo.prova-em-par.test.ts > prova em par com a ferramenta real — o mesmo pedido pelo grupo e pela ferramenta direto > 14:00 ocupado: nenhum dos dois lados escreve, e os dois oferecem os mesmos horários 56ms
+ Test Files  1 passed (1)
+      Tests  3 passed (3)
