@@ -1,5 +1,5 @@
 -- manifest: **Passagem silenciosa quando a mensagem é pessoal (issue #10).** Coluna nova `handoff_silencioso_pessoal boolean not null default false` em `ai_agent_versions` (desligada por padrão: quem não mexer fica como hoje), coberta pela trava de imutabilidade da versão publicada; o CHECK de `passagens_de_atendimento.motivo_codigo` aceita `mensagem_pessoal` e o de `aviso_motivo_codigo` aceita `silencio_intencional` — o cliente não foi avisado por decisão, e a tela não acusa falha de envio. Par de `MOTIVOS_DA_PASSAGEM`/`MOTIVOS_DO_AVISO` em `lib/escalacao/passagem.ts`.
--- 9101 — A PASSAGEM SILENCIOSA QUANDO A MENSAGEM É PESSOAL
+-- 0769 — A PASSAGEM SILENCIOSA QUANDO A MENSAGEM É PESSOAL
 --
 -- Um familiar, amigo ou fornecedor escreve para o número do negócio e o
 -- agente o trata como cliente. Quando o agente passa a conversa para a

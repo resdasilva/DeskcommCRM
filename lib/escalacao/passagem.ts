@@ -98,7 +98,7 @@ export const MOTIVOS_DA_PASSAGEM = [
   // A mensagem era PESSOAL para o dono ou a equipe (um familiar, um fornecedor),
   // e não um atendimento (issue #10). Só a ferramenta do modelo o declara, e só
   // com `handoff_silencioso_pessoal` ligado na versão do agente: é o motivo que
-  // passa a conversa SEM avisar o contato. Par da migration 9101.
+  // passa a conversa SEM avisar o contato. Par da migration 0769.
   "mensagem_pessoal",
 ] as const;
 export type MotivoDaPassagem = (typeof MOTIVOS_DA_PASSAGEM)[number];

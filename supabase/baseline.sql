@@ -60055,7 +60055,7 @@ grant  execute on function public.fn_definir_aviso_de_agendamento(uuid,boolean,u
 
 notify pgrst, 'reload schema';
 
--- ---- passagem silenciosa quando a mensagem é pessoal (migration 9101) ----
+-- ---- passagem silenciosa quando a mensagem é pessoal (migration 0769) ----
 -- Issue #10. `handoff_silencioso_pessoal` em `ai_agent_versions`, DESLIGADA por
 -- padrão, e a trava de imutabilidade da versão publicada passa a cobri-la. Os
 -- valores `mensagem_pessoal` (motivo) e `silencio_intencional` (desfecho do
