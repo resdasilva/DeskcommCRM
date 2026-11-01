@@ -36,6 +36,8 @@ import {
 } from "@/lib/agent-engine/agent/human-handoff";
 import {
   aplicaAChaveDaPassagemSilenciosa,
+  cercarEnviosPelaTravaDoSilencio,
+  criarTravaDoSilencio,
   decidirPassagemSilenciosa,
   descricaoDaFerramentaDePassagem,
   ENSINO_DA_PASSAGEM_SILENCIOSA,
@@ -210,6 +212,96 @@ describe("a decisão do turno: piso e mensagem já enviada", () => {
   it("seq > 0: o modelo já falou, e o motivo é recusado", () => {
     expect(decidirPassagemSilenciosa({ chaveLigada: true, raw: pessoal, seq: 2 })).toBe("ja_falou");
   });
+
+  it("send_message em voo com seq ainda 0: o motivo também é recusado", () => {
+    expect(decidirPassagemSilenciosa({ chaveLigada: true, raw: pessoal, seq: 0, enviosEmVoo: 1 })).toBe("em_voo");
+    // Já falou e ainda tem envio em voo: o que vale é o que já saiu.
+    expect(decidirPassagemSilenciosa({ chaveLigada: true, raw: pessoal, seq: 1, enviosEmVoo: 1 })).toBe("ja_falou");
+    // Chave desligada: o envio em voo não muda nada.
+    expect(decidirPassagemSilenciosa({ chaveLigada: false, raw: pessoal, seq: 0, enviosEmVoo: 1 })).toBe("normal");
+  });
+});
+
+describe("a corrida no mesmo passo: send_message e a passagem silenciosa", () => {
+  const pessoal = { motivo_codigo: "mensagem_pessoal" };
+
+  /** Um send_message dublê que só termina quando o teste manda. */
+  function ferramentasComEnvioPreso() {
+    let soltar: () => void = () => {};
+    const preso = new Promise<void>((r) => {
+      soltar = r;
+    });
+    const execute = vi.fn(async () => {
+      await preso;
+      return { ok: true };
+    });
+    const tools: Record<string, unknown> = {
+      send_message: { description: "envia", execute },
+      send_template: { description: "modelo", execute: vi.fn(async () => ({ ok: true })) },
+    };
+    return { tools, execute, soltar: () => soltar() };
+  }
+
+  it("envio começou antes: a passagem vê o envio em voo e recusa o silêncio", async () => {
+    const trava = criarTravaDoSilencio();
+    const { tools, soltar } = ferramentasComEnvioPreso();
+    cercarEnviosPelaTravaDoSilencio(tools, true, trava);
+    const envio = (tools.send_message as { execute: () => Promise<unknown> }).execute();
+    expect(
+      decidirPassagemSilenciosa({ chaveLigada: true, raw: pessoal, seq: 0, enviosEmVoo: trava.enviosEmVoo() }),
+    ).toBe("em_voo");
+    soltar();
+    await envio;
+    // Terminado o envio, nada fica preso em voo.
+    expect(trava.enviosEmVoo()).toBe(0);
+  });
+
+  it("silêncio reservado antes: o envio do mesmo passo é recusado e nada sai", async () => {
+    const trava = criarTravaDoSilencio();
+    const { tools, execute } = ferramentasComEnvioPreso();
+    cercarEnviosPelaTravaDoSilencio(tools, true, trava);
+    trava.reservarSilencio();
+    const r = await (tools.send_message as { execute: () => Promise<unknown> }).execute();
+    expect(execute).not.toHaveBeenCalled();
+    expect(JSON.stringify(r)).toContain("passagem_silenciosa");
+    const t = await (tools.send_template as { execute: () => Promise<unknown> }).execute();
+    expect(JSON.stringify(t)).toContain("passagem_silenciosa");
+  });
+
+  it("silêncio solto (a passagem falhou): o envio volta a sair", async () => {
+    const trava = criarTravaDoSilencio();
+    const { tools, execute, soltar } = ferramentasComEnvioPreso();
+    cercarEnviosPelaTravaDoSilencio(tools, true, trava);
+    trava.reservarSilencio();
+    trava.soltarSilencio();
+    soltar();
+    await (tools.send_message as { execute: () => Promise<unknown> }).execute();
+    expect(execute).toHaveBeenCalledTimes(1);
+  });
+
+  it("envio que lança também sai da conta de em voo", async () => {
+    const trava = criarTravaDoSilencio();
+    const tools: Record<string, unknown> = {
+      send_message: {
+        execute: async () => {
+          throw new Error("canal caiu");
+        },
+      },
+    };
+    cercarEnviosPelaTravaDoSilencio(tools, true, trava);
+    await expect((tools.send_message as { execute: () => Promise<unknown> }).execute()).rejects.toThrow("canal caiu");
+    expect(trava.enviosEmVoo()).toBe(0);
+  });
+
+  it("chave desligada ou ausente: as ferramentas de envio ficam intocadas", () => {
+    const trava = criarTravaDoSilencio();
+    const { tools } = ferramentasComEnvioPreso();
+    const antes = { ...tools };
+    cercarEnviosPelaTravaDoSilencio(tools, false, trava);
+    cercarEnviosPelaTravaDoSilencio(tools, undefined, trava);
+    expect(tools.send_message).toBe(antes.send_message);
+    expect(tools.send_template).toBe(antes.send_template);
+  });
 });
 
 describe("a descrição da ferramenta só ensina o motivo com a chave ligada", () => {
@@ -238,9 +330,9 @@ describe("fiação no turno", () => {
   const fim = fonte.indexOf("    }),\n  };", inicio);
   const corpo = fonte.slice(inicio, fim);
 
-  it("a recusa de 'ja_falou' vem antes do piso, e o piso não roda em silêncio", () => {
+  it("a recusa de 'ja_falou' e 'em_voo' vem antes do piso, e o piso não roda em silêncio", () => {
     expect(inicio).toBeGreaterThan(-1);
-    const recusa = corpo.indexOf("if (passagemSilenciosa === 'ja_falou')");
+    const recusa = corpo.indexOf("if (passagemSilenciosa === 'ja_falou' || passagemSilenciosa === 'em_voo')");
     const piso = corpo.indexOf("await avisarLeadDaEscalacao(");
     expect(recusa).toBeGreaterThan(-1);
     expect(recusa).toBeLessThan(piso);
@@ -251,5 +343,19 @@ describe("fiação no turno", () => {
     expect(corpo).toContain("chaveLigada: silenciosoPessoal");
     expect(corpo).toMatch(/silenciosoPessoal,\s*log: runLog/);
     expect(fonte).toContain("aplicaAChaveDaPassagemSilenciosa(rawTools, agentConfig?.handoffSilenciosoPessoal);");
+  });
+
+  it("a trava do silêncio: lida e reservada sem await no meio, solta quando a passagem falha", () => {
+    expect(corpo).toContain("enviosEmVoo: travaDoSilencio.enviosEmVoo()");
+    const decisao = corpo.indexOf("decidirPassagemSilenciosa({");
+    const reserva = corpo.indexOf("travaDoSilencio.reservarSilencio();");
+    expect(decisao).toBeGreaterThan(-1);
+    expect(reserva).toBeGreaterThan(decisao);
+    // Entre olhar e reservar não pode haver await: senão um envio entra no meio.
+    expect(corpo.slice(decisao, reserva)).not.toMatch(/await/);
+    expect((corpo.match(/travaDoSilencio\.soltarSilencio\(\)/g) ?? []).length).toBeGreaterThanOrEqual(2);
+    expect(fonte).toContain(
+      "cercarEnviosPelaTravaDoSilencio(rawTools, agentConfig?.handoffSilenciosoPessoal, travaDoSilencio);",
+    );
   });
 });
