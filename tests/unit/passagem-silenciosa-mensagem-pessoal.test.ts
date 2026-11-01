@@ -121,6 +121,15 @@ describe("com a chave ligada e mensagem_pessoal, a passagem acontece em silênci
     expect(sql(/insert into agent_inbox_items/)).toHaveLength(1);
   });
 
+  it("o item da Central é do tipo 'handoff', o mesmo que o aviso da equipe no WhatsApp escuta", async () => {
+    // QA (issue #10, AC 5): o aviso da equipe sai do `central.aviso_criado` do
+    // item `handoff`. Se a passagem silenciosa gravasse outro tipo, a equipe
+    // ficaria sem o aviso justamente quando o contato também não recebe nada.
+    await passar({ motivo_codigo: "mensagem_pessoal" }, { chave: true });
+    const item = sql(/insert into agent_inbox_items/)[0];
+    expect(item?.sql).toMatch(/'handoff'/);
+  });
+
   it("a linha da passagem guarda mensagem_pessoal e silencio_intencional", async () => {
     await passar({ motivo_codigo: "mensagem_pessoal" }, { chave: true });
     expect(linhaGravada()).toMatchObject({
@@ -187,6 +196,27 @@ describe("regressão: os outros motivos avisam o contato como antes", () => {
     expect(r.ok).toBe(true);
     expect(r.ok && r.message).toContain("O lead JÁ foi avisado");
     expect(linhaGravada()).toMatchObject({ motivo_codigo: motivo, cliente_avisado: true });
+  });
+
+  // QA (issue #10, AC 7): com a chave desligada ou ausente — o estado de toda
+  // versão que já existe — os dois motivos seguem passando e avisando.
+  it.each([
+    ["requested_human", false],
+    ["critical_stage", false],
+    ["requested_human", undefined],
+    ["critical_stage", undefined],
+  ] as const)("%s com a chave %s", async (motivo, chave) => {
+    const r = await passar({ motivo_codigo: motivo }, { chave, aviso: { avisado: true } });
+    expect(r.ok).toBe(true);
+    expect(r.ok && r.message).toContain("O lead JÁ foi avisado");
+    expect(linhaGravada()).toMatchObject({ motivo_codigo: motivo, cliente_avisado: true });
+  });
+
+  it("a decisão do turno deixa critical_stage no caminho de sempre (o piso avisa)", () => {
+    expect(
+      decidirPassagemSilenciosa({ chaveLigada: true, raw: { motivo_codigo: "critical_stage" }, seq: 0, enviosEmVoo: 1 }),
+    ).toBe("normal");
+    expect(decidirPassagemSilenciosa({ chaveLigada: true, raw: {}, seq: 0 })).toBe("normal");
   });
 });
 
