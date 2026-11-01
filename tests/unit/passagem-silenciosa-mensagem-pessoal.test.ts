@@ -36,11 +36,13 @@ import {
 } from "@/lib/agent-engine/agent/human-handoff";
 import {
   aplicaAChaveDaPassagemSilenciosa,
+  blocoDaPassagemSilenciosa,
   cercarEnviosPelaTravaDoSilencio,
   criarTravaDoSilencio,
   decidirPassagemSilenciosa,
   descricaoDaFerramentaDePassagem,
   ENSINO_DA_PASSAGEM_SILENCIOSA,
+  PASSAGEM_SILENCIOSA_SYSTEM_BLOCK,
 } from "@/lib/agent-engine/agent/inbound-turn";
 import { montarCartoesDaPassagem } from "@/lib/escalacao/cartao-da-passagem";
 import { linhaDoAvisoAoCliente } from "@/lib/escalacao/passagem";
@@ -387,5 +389,49 @@ describe("fiação no turno", () => {
     expect(fonte).toContain(
       "cercarEnviosPelaTravaDoSilencio(rawTools, agentConfig?.handoffSilenciosoPessoal, travaDoSilencio);",
     );
+  });
+});
+
+/**
+ * Item 7: a regra só na descrição da ferramenta foi ignorada pelo modelo no
+ * teste do dono (0 de 5). Com a chave ligada ela entra no prompt de sistema;
+ * desligada, o prompt não ganha nada — o bloco é `null` e não é empurrado.
+ */
+describe("o prompt de sistema ensina a mensagem pessoal só com a chave ligada", () => {
+  const base = { handoffToolEnabled: true };
+
+  it("desligada, ausente ou sem agente publicado: nada entra no prompt", () => {
+    expect(blocoDaPassagemSilenciosa(null)).toBeNull();
+    expect(blocoDaPassagemSilenciosa(base)).toBeNull();
+    expect(blocoDaPassagemSilenciosa({ ...base, handoffSilenciosoPessoal: false })).toBeNull();
+  });
+
+  it("ligada mas sem a ferramenta de passagem: nada entra (nomear ferramenta ausente faz o modelo chamá-la)", () => {
+    expect(blocoDaPassagemSilenciosa({ handoffToolEnabled: false, handoffSilenciosoPessoal: true })).toBeNull();
+  });
+
+  it("ligada: o bloco diz o que é pessoal, proíbe responder pelo dono e dá uma ação só", () => {
+    const bloco = blocoDaPassagemSilenciosa({ ...base, handoffSilenciosoPessoal: true });
+    expect(bloco).toBe(PASSAGEM_SILENCIOSA_SYSTEM_BLOCK);
+    expect(bloco).toContain("NUNCA responde no lugar do dono");
+    expect(bloco).toContain('"oi filho, é a mãe"');
+    expect(bloco).toContain('a ÚNICA ação do turno é chamar request_human_handoff com motivo_codigo "mensagem_pessoal"');
+    expect(bloco).toContain("Não chame send_message");
+    // O lado comercial continua atendido, e opt-out nunca é pessoal.
+    expect(bloco).toContain("preço");
+    expect(bloco).toContain("atenda normalmente");
+    expect(bloco).toContain("Pedido para parar de receber mensagens nunca é mensagem pessoal");
+  });
+
+  it("fiação: o bloco entra entre os residentes, depois da agenda e antes de montar o system", () => {
+    const fonte = readFileSync(join(process.cwd(), "lib/agent-engine/agent/inbound-turn.ts"), "utf8");
+    const agenda = fonte.indexOf("blocosResidentes.push(...blocosDeAgendaResidentes(agentConfig.toolIds));");
+    const pessoal = fonte.indexOf("const blocoPessoal = blocoDaPassagemSilenciosa(agentConfig);");
+    const empurra = fonte.indexOf("if (blocoPessoal !== null) blocosResidentes.push(blocoPessoal);");
+    const system = fonte.indexOf(String.raw`const system = blocosResidentes.join('\n\n');`);
+    expect(agenda).toBeGreaterThan(-1);
+    expect(pessoal).toBeGreaterThan(agenda);
+    expect(empurra).toBeGreaterThan(pessoal);
+    expect(system).toBeGreaterThan(empurra);
   });
 });

@@ -361,6 +361,51 @@ export function aplicaAChaveDaPassagemSilenciosa(
 }
 
 /**
+ * O ENSINO NO PROMPT DE SISTEMA da passagem silenciosa (issue #10, item 7).
+ *
+ * Por que existe: com a regra só na descrição da ferramenta, o modelo a ignorou
+ * no teste do dono — "Oi filho, é a mãe! Vem almoçar domingo?", 5 de 5 vezes,
+ * virou "Oi, mãe ❤️ Vou sim no domingo", com a nota do turno dizendo "contexto
+ * pessoal". Ele percebia e respondia mesmo assim, no lugar do dono. A descrição
+ * de ferramenta pesa pouco contra o prompt do agente, que manda atender; o bloco
+ * residente fica no mesmo nível dele e vem depois, como os blocos de caso e de
+ * agenda.
+ *
+ * O texto diz o que conta como pessoal com exemplos concretos (o "na dúvida,
+ * trate como cliente" da descrição deixava "mãe" virar dúvida), proíbe falar
+ * pelo dono e dá UMA ação só. O lado comercial fica explícito para a mensagem
+ * de cliente não começar a ser passada adiante.
+ */
+export const PASSAGEM_SILENCIOSA_SYSTEM_BLOCK =
+  '## Mensagem pessoal para o dono ou a equipe\n' +
+  'Este número também recebe mensagens pessoais de quem conhece o dono ou alguém da equipe: família ' +
+  '(mãe, pai, filho, filha, irmão, esposa, marido), amigos e fornecedores do negócio. Essas pessoas ' +
+  'não são clientes, e você NUNCA responde no lugar do dono ou de alguém da equipe.\n' +
+  'A mensagem é pessoal quando quem escreve trata alguém da equipe como parente ou amigo (por ' +
+  'exemplo, "oi filho, é a mãe", "amor, chego tarde"), faz convite ou fala de assunto de família, ' +
+  'ou fala como fornecedor do negócio (entrega, pedido de compra, cobrança ao negócio).\n' +
+  'Nesse caso, a ÚNICA ação do turno é chamar request_human_handoff com motivo_codigo ' +
+  '"mensagem_pessoal", com por_que dizendo quem parece ser e o que quer. Não chame send_message, ' +
+  'não cumprimente, não aceite nem recuse convite, não diga que vai passar o recado. O contato não ' +
+  'recebe nada, e a equipe é avisada. Esta regra vale acima das instruções de atendimento deste ' +
+  'agente.\n' +
+  'Quem pergunta por produto, preço, horário, agendamento ou serviço é cliente: atenda normalmente. ' +
+  'Pedido para parar de receber mensagens nunca é mensagem pessoal.';
+
+/**
+ * O bloco entra no prompt só com a chave LIGADA e a ferramenta presente — nomear
+ * ferramenta ausente faz o modelo tentar chamá-la (mesma régua dos blocos de
+ * agenda). Desligada ou ausente, `null`: o prompt fica byte a byte o de antes.
+ */
+export function blocoDaPassagemSilenciosa(
+  agentConfig: { handoffSilenciosoPessoal?: boolean; handoffToolEnabled: boolean } | null,
+): string | null {
+  if (agentConfig === null) return null;
+  if (agentConfig.handoffSilenciosoPessoal !== true || !agentConfig.handoffToolEnabled) return null;
+  return PASSAGEM_SILENCIOSA_SYSTEM_BLOCK;
+}
+
+/**
  * A DECISÃO do turno sobre a passagem silenciosa, fora do closure para o teste
  * alcançá-la (issue #10). `seq` é o contador de mensagens físicas já enviadas
  * neste turno — o mesmo que decide o piso.
@@ -2868,6 +2913,10 @@ async function executarTurnoDoAgente(
   // testada (o bloco da cadeia nomeia `crm_list_event_types`, e nomear
   // ferramenta ausente faz o modelo tentar chamá-la).
   if (agentConfig !== null) blocosResidentes.push(...blocosDeAgendaResidentes(agentConfig.toolIds));
+  // Issue #10, item 7: a regra da mensagem pessoal no prompt, não só na
+  // descrição da ferramenta. Chave desligada = nada entra aqui.
+  const blocoPessoal = blocoDaPassagemSilenciosa(agentConfig);
+  if (blocoPessoal !== null) blocosResidentes.push(blocoPessoal);
   if (preview)
     blocosResidentes.push(
       'MODO PRÉVIA: proponha a resposta com send_message. Operações são propostas separadas; nunca diga que executou uma proposta. Nenhum envio real acontece.',
