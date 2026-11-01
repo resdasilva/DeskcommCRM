@@ -30129,7 +30129,7 @@ create table if not exists public.passagens_de_atendimento (
   motivo_codigo    text not null check (motivo_codigo in (
                      'requested_human','suspected_optout','orcamento_de_ia','low_sentiment',
                      'low_confidence','critical_stage','legal_mention','refund_mention',
-                     'caso_escalado','verificacao_manual')),
+                     'caso_escalado','verificacao_manual','mensagem_pessoal')),
 
   -- ─── OS QUATRO NOMES QUE O GATE DE LGPD LÊ (ver o cabeçalho) ─────────────
   --   title   ← "o que o cliente quer", em uma linha (é o título do cartão)
@@ -30165,7 +30165,7 @@ create table if not exists public.passagens_de_atendimento (
   -- a ficar sem espanhol.
   aviso_motivo_codigo  text check (aviso_motivo_codigo is null or aviso_motivo_codigo in (
                          'na_fila_canal_fora','falhou_no_envio','sem_telefone',
-                         'pre_go_live','canal_arquivado','fora_da_janela')),
+                         'pre_go_live','canal_arquivado','fora_da_janela','silencio_intencional')),
 
   criado_em        timestamptz not null default now(),
   -- Quem assumiu. `reconhecido_por is null` COM `reconhecido_em` preenchido = a
@@ -30222,7 +30222,7 @@ alter table public.passagens_de_atendimento
   check (motivo_codigo in (
     'requested_human','suspected_optout','orcamento_de_ia','low_sentiment',
     'low_confidence','critical_stage','legal_mention','refund_mention',
-    'caso_escalado','verificacao_manual'));
+    'caso_escalado','verificacao_manual','mensagem_pessoal'));
 
 alter table public.passagens_de_atendimento
   drop constraint if exists passagens_de_atendimento_aviso_motivo_codigo_check;
@@ -30230,7 +30230,7 @@ alter table public.passagens_de_atendimento
   add constraint passagens_de_atendimento_aviso_motivo_codigo_check
   check (aviso_motivo_codigo is null or aviso_motivo_codigo in (
     'na_fila_canal_fora','falhou_no_envio','sem_telefone',
-    'pre_go_live','canal_arquivado','fora_da_janela'));
+    'pre_go_live','canal_arquivado','fora_da_janela','silencio_intencional'));
 
 alter table public.passagens_de_atendimento
   drop constraint if exists passagens_de_atendimento_tentativas_check;
@@ -60052,6 +60052,76 @@ $$;
 -- AS DUAS ORIGENS DE EXECUTE (item 9 da doutrina de migrations).
 revoke all     on function public.fn_definir_aviso_de_agendamento(uuid,boolean,uuid,text,boolean,boolean,text,boolean,text[]) from public, anon;
 grant  execute on function public.fn_definir_aviso_de_agendamento(uuid,boolean,uuid,text,boolean,boolean,text,boolean,text[]) to authenticated;
+
+notify pgrst, 'reload schema';
+
+-- ---- passagem silenciosa quando a mensagem é pessoal (migration 9101) ----
+-- Issue #10. `handoff_silencioso_pessoal` em `ai_agent_versions`, DESLIGADA por
+-- padrão, e a trava de imutabilidade da versão publicada passa a cobri-la. Os
+-- valores `mensagem_pessoal` (motivo) e `silencio_intencional` (desfecho do
+-- aviso) entraram nos blocos ÚNICOS de `passagens_de_atendimento_*_check` (logo
+-- depois do `create table public.passagens_de_atendimento`), e não aqui:
+-- reconstruir a constraint num segundo bloco é o que
+-- `tests/unit/baseline-constraint-reconstruida.test.ts` reprova. Antes da
+-- VARREDURA anon porque recria uma função. Par de `lib/escalacao/passagem.ts`.
+
+alter table public.ai_agent_versions
+  add column if not exists handoff_silencioso_pessoal boolean not null default false;
+
+comment on column public.ai_agent_versions.handoff_silencioso_pessoal is
+  'Quando a mensagem é pessoal para o dono ou a equipe (e não um atendimento), o agente passa a conversa sem dizer nada ao contato? Padrão DESLIGADO; só admin muda, e a mudança é publicar uma versão nova do agente. Opt-out continua vencendo.';
+
+create or replace function fn_ai_agent_version_content_immutable() returns trigger
+-- search_path fixo na PRÓPRIA definição: um create or replace sem a cláusula
+-- apaga o alter function ... set search_path da 0521 (invariante
+-- tests/invariants/avisos-do-security-advisor.test.ts).
+language plpgsql set search_path = '' as $fn$
+begin
+  if old.status <> 'draft' and (
+       new.system_prompt          is distinct from old.system_prompt
+    or new.provider               is distinct from old.provider
+    or new.model                  is distinct from old.model
+    or new.credential_id          is distinct from old.credential_id
+    or new.tool_ids               is distinct from old.tool_ids
+    or new.trigger_config         is distinct from old.trigger_config
+    or new.channel_session_id     is distinct from old.channel_session_id
+    or new.max_steps              is distinct from old.max_steps
+    or new.token_budget           is distinct from old.token_budget
+    or new.cost_budget_cents      is distinct from old.cost_budget_cents
+    or new.history_message_window is distinct from old.history_message_window
+    or new.history_token_window   is distinct from old.history_token_window
+    or new.handoff_keywords       is distinct from old.handoff_keywords
+    or new.handoff_tool_enabled   is distinct from old.handoff_tool_enabled
+    or new.handoff_legal_enabled  is distinct from old.handoff_legal_enabled
+    or new.handoff_silencioso_pessoal is distinct from old.handoff_silencioso_pessoal
+    or new.followup               is distinct from old.followup
+    or new.multimodal_input       is distinct from old.multimodal_input
+    or new.video_frames_enabled   is distinct from old.video_frames_enabled
+    or new.split_messages         is distinct from old.split_messages
+    or new.split_max_chars        is distinct from old.split_max_chars
+    or new.cases_enabled          is distinct from old.cases_enabled
+    or new.operator_enabled       is distinct from old.operator_enabled
+    or new.operator_model         is distinct from old.operator_model
+    or new.operator_tool_ids      is distinct from old.operator_tool_ids
+    or new.pipeline_ids           is distinct from old.pipeline_ids
+    or new.knowledge_source_ids   is distinct from old.knowledge_source_ids
+    or new.proposal_ai_draft_enabled is distinct from old.proposal_ai_draft_enabled
+    or new.inbound_debounce_ms    is distinct from old.inbound_debounce_ms
+    or new.version_number         is distinct from old.version_number
+    or new.agent_id               is distinct from old.agent_id
+    or new.organization_id        is distinct from old.organization_id
+  ) then
+    raise exception 'ai_agent_versions % é imutável (status=%): mudança de conteúdo = versão draft nova; rollback = revert (clona + publica)',
+      old.id, old.status;
+  end if;
+  return new;
+end;
+$fn$;
+
+drop trigger if exists trg_ai_agent_versions_content_immutable on public.ai_agent_versions;
+create trigger trg_ai_agent_versions_content_immutable
+  before update on public.ai_agent_versions
+  for each row execute function fn_ai_agent_version_content_immutable();
 
 notify pgrst, 'reload schema';
 

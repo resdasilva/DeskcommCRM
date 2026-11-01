@@ -14241,6 +14241,8 @@ export const DICIONARIO: Traducoes = {
     { es: "Alguien del equipo escaló una atención" },
   "Um fluxo automático coletou dados e passou a conversa para verificação humana":
     { es: "Un flujo automático recopiló datos y pasó la conversación a verificación humana" },
+  "A mensagem parece pessoal para o dono ou a equipe, e não um atendimento":
+    { es: "El mensaje parece personal para el dueño o el equipo, y no una atención" },
   "A mensagem ficou na fila porque o canal está fora do ar":
     { es: "El mensaje quedó en la cola porque el canal está fuera de servicio" },
   "O canal recusou a mensagem de aviso":
@@ -14253,6 +14255,8 @@ export const DICIONARIO: Traducoes = {
     { es: "El canal de esta conversación fue archivado" },
   "Estamos fora do horário em que este canal envia mensagens":
     { es: "Estamos fuera del horario en que este canal envía mensajes" },
+  "A mensagem era pessoal, e o assistente não respondeu de propósito":
+    { es: "El mensaje era personal, y el asistente no respondió a propósito" },
 
   // ── O aviso de caso no WhatsApp do suporte (migration 0292) ──────────────
   // O texto sai SEM DOM, pelo dreno do event_log, e o idioma é o da
@@ -14534,6 +14538,8 @@ export const DICIONARIO: Traducoes = {
   "O cliente NÃO foi avisado": { es: "El cliente NO fue avisado" },
   "ele está esperando sem saber.": { es: "está esperando sin saberlo." },
   "motivo desconhecido": { es: "motivo desconocido" },
+  "O cliente não foi avisado, de propósito: a mensagem era pessoal.":
+    { es: "El cliente no fue avisado, a propósito: el mensaje era personal." },
   // O TÍTULO do mesmo aviso, gravado pelos dois motores de passagem
   // (`lib/ai/handoff/orchestrator.ts` e `lib/agent-engine/agent/human-handoff.ts`)
   // pelo mesmo caminho do corpo: traduzido no servidor, no idioma da organização.

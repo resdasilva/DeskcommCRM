@@ -95,6 +95,11 @@ export const MOTIVOS_DA_PASSAGEM = [
   // pediu uma pessoa — mentir no rótulo faria quem assume abrir com um
   // agradecimento que ninguém pediu. Par da migration 0693.
   "verificacao_manual",
+  // A mensagem era PESSOAL para o dono ou a equipe (um familiar, um fornecedor),
+  // e não um atendimento (issue #10). Só a ferramenta do modelo o declara, e só
+  // com `handoff_silencioso_pessoal` ligado na versão do agente: é o motivo que
+  // passa a conversa SEM avisar o contato. Par da migration 9101.
+  "mensagem_pessoal",
 ] as const;
 export type MotivoDaPassagem = (typeof MOTIVOS_DA_PASSAGEM)[number];
 
@@ -118,6 +123,11 @@ export const MOTIVOS_DO_AVISO = [
   "pre_go_live",
   "canal_arquivado",
   "fora_da_janela",
+  // NÃO é falha: ninguém tentou avisar, de propósito, porque a mensagem era
+  // pessoal (`mensagem_pessoal`, issue #10). Distinto dos outros porque a tela
+  // não pode dizer que o contato "está esperando sem saber" — ele não está
+  // esperando atendimento nenhum.
+  "silencio_intencional",
 ] as const;
 export type MotivoDoAviso = (typeof MOTIVOS_DO_AVISO)[number];
 
@@ -140,6 +150,7 @@ export const FRASE_DO_MOTIVO = {
   refund_mention: "A conversa tocou em reembolso",
   caso_escalado: "Uma pessoa da equipe escalou um atendimento",
   verificacao_manual: "Um fluxo automático coletou dados e passou a conversa para verificação humana",
+  mensagem_pessoal: "A mensagem parece pessoal para o dono ou a equipe, e não um atendimento",
 } satisfies Record<MotivoDaPassagem, string>;
 
 /**
@@ -165,6 +176,7 @@ export const FRASE_DO_MOTIVO_DO_AVISO = {
   pre_go_live: "O número ainda está em aquecimento e não envia mensagens",
   canal_arquivado: "O canal desta conversa foi arquivado",
   fora_da_janela: "Estamos fora do horário em que este canal envia mensagens",
+  silencio_intencional: "A mensagem era pessoal, e o assistente não respondeu de propósito",
 } satisfies Record<MotivoDoAviso, string>;
 
 /**
@@ -463,6 +475,10 @@ export function linhaDoAvisoAoCliente(
 ): string | null {
   if (aviso == null) return null;
   if (aviso.avisado) return traduzirTexto("O cliente JÁ FOI avisado de que uma pessoa vai assumir.");
+  // Silêncio por decisão não é alerta: sem o ⚠️ e sem "esperando sem saber".
+  if (aviso.motivoCodigo === "silencio_intencional") {
+    return traduzirTexto("O cliente não foi avisado, de propósito: a mensagem era pessoal.");
+  }
   if (aviso.motivoCodigo === "na_fila_canal_fora") {
     return traduzirTexto("O aviso ficou na fila (o canal está fora do ar) — o cliente ainda não recebeu.");
   }

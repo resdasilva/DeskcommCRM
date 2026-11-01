@@ -1886,6 +1886,7 @@ export type Database = {
           handoff_keywords: string[]
           handoff_tool_enabled: boolean
           handoff_legal_enabled: boolean
+          handoff_silencioso_pessoal: boolean
           proposal_ai_draft_enabled: boolean
           history_message_window: number
           history_token_window: number
@@ -1926,6 +1927,7 @@ export type Database = {
           handoff_keywords?: string[]
           handoff_tool_enabled?: boolean
           handoff_legal_enabled?: boolean
+          handoff_silencioso_pessoal?: boolean
           proposal_ai_draft_enabled?: boolean
           history_message_window?: number
           history_token_window?: number
@@ -1966,6 +1968,7 @@ export type Database = {
           handoff_keywords?: string[]
           handoff_tool_enabled?: boolean
           handoff_legal_enabled?: boolean
+          handoff_silencioso_pessoal?: boolean
           proposal_ai_draft_enabled?: boolean
           history_message_window?: number
           history_token_window?: number

@@ -275,7 +275,12 @@ function proximoPasso(result: TriggerHandoffResult): string {
  */
 function motivoDoAgenteExterno(texto: string | null | undefined): HandoffReason {
   const codigo = motivoCodigoDoTexto(texto);
-  return codigo === "suspected_optout" || codigo === "caso_escalado" || codigo === "verificacao_manual"
+  // `mensagem_pessoal` (issue #10) é da ferramenta do agente nativo, que é quem
+  // decide não avisar o contato; o agente externo não tem esse silêncio.
+  return codigo === "suspected_optout" ||
+    codigo === "caso_escalado" ||
+    codigo === "verificacao_manual" ||
+    codigo === "mensagem_pessoal"
     ? "low_confidence"
     : codigo;
 }
