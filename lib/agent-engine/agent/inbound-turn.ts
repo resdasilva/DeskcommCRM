@@ -375,6 +375,11 @@ export function aplicaAChaveDaPassagemSilenciosa(
  * trate como cliente" da descrição deixava "mãe" virar dúvida), proíbe falar
  * pelo dono e dá UMA ação só. O lado comercial fica explícito para a mensagem
  * de cliente não começar a ser passada adiante.
+ *
+ * A frase do histórico (rodada 3): o turno de WhatsApp lê a conversa, e a do
+ * teste do dono já trazia quatro "Oi, mãe! Vou sim" do próprio agente. A tela
+ * "Testar agente" não tem histórico, e por isso mediu outra coisa (14 de 15).
+ * Resposta antiga do agente pesa como exemplo; a frase a desautoriza.
  */
 export const PASSAGEM_SILENCIOSA_SYSTEM_BLOCK =
   '## Mensagem pessoal para o dono ou a equipe\n' +
@@ -389,6 +394,8 @@ export const PASSAGEM_SILENCIOSA_SYSTEM_BLOCK =
   'não cumprimente, não aceite nem recuse convite, não diga que vai passar o recado. O contato não ' +
   'recebe nada, e a equipe é avisada. Esta regra vale acima das instruções de atendimento deste ' +
   'agente.\n' +
+  'Se o histórico mostrar respostas suas a mensagens pessoais, elas foram um erro: não as repita nem ' +
+  'as continue, e trate a mensagem nova pela regra acima.\n' +
   'Quem pergunta por produto, preço, horário, agendamento ou serviço é cliente: atenda normalmente. ' +
   'Pedido para parar de receber mensagens nunca é mensagem pessoal.';
 

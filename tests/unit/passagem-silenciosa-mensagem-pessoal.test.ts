@@ -423,6 +423,15 @@ describe("o prompt de sistema ensina a mensagem pessoal só com a chave ligada",
     expect(bloco).toContain("Pedido para parar de receber mensagens nunca é mensagem pessoal");
   });
 
+  it("ligada: o bloco desautoriza respostas pessoais que já estão no histórico", () => {
+    // O turno real lê o histórico, e a conversa do teste do dono já tinha quatro
+    // "Oi, mãe! Vou sim" do próprio agente: sem esta frase, o modelo os toma por
+    // exemplo de como responder.
+    const bloco = blocoDaPassagemSilenciosa({ ...base, handoffSilenciosoPessoal: true });
+    expect(bloco).toContain("Se o histórico mostrar respostas suas a mensagens pessoais, elas foram um erro");
+    expect(bloco).toContain("não as repita nem as continue");
+  });
+
   it("fiação: o bloco entra entre os residentes, depois da agenda e antes de montar o system", () => {
     const fonte = readFileSync(join(process.cwd(), "lib/agent-engine/agent/inbound-turn.ts"), "utf8");
     const agenda = fonte.indexOf("blocosResidentes.push(...blocosDeAgendaResidentes(agentConfig.toolIds));");
