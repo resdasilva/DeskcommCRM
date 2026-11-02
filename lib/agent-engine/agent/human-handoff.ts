@@ -720,21 +720,34 @@ async function corpoDaCentral(
  * um resumo montado do checkpoint e mais nada — nem o porquê, nem o que a IA já
  * tentou, nem o que o cliente pediu com as palavras dele.
  */
-export const requestHumanHandoffInputSchema = z.strictObject({
-  motivo_codigo: z.enum(['requested_human', 'critical_stage']).optional(),
-  reason: z.string().min(1).max(500).optional(),
-  por_que: z.string().min(1).max(500).optional(),
-  o_que_tentei: z
-    .array(
-      z.strictObject({
-        o_que: z.string().min(1).max(200),
-        desfecho: z.string().min(1).max(200).optional(),
+export function esquemaDaPassagemPedida(silenciosoPessoal: boolean) {
+  return z.strictObject({
+    // `mensagem_pessoal` (issue #10) só vale com a chave da versão ligada:
+    // desligada, o `refine` recusa o valor e o modelo recebe o erro de ensino,
+    // como em qualquer motivo fora do vocabulário.
+    motivo_codigo: z
+      .enum(['requested_human', 'critical_stage', 'mensagem_pessoal'])
+      .optional()
+      .refine((v) => silenciosoPessoal || v !== 'mensagem_pessoal', {
+        message: 'mensagem_pessoal não está ligado neste agente',
       }),
-    )
-    .max(6)
-    .optional(),
-  cliente_quer: z.string().min(1).max(300).optional(),
-});
+    reason: z.string().min(1).max(500).optional(),
+    por_que: z.string().min(1).max(500).optional(),
+    o_que_tentei: z
+      .array(
+        z.strictObject({
+          o_que: z.string().min(1).max(200),
+          desfecho: z.string().min(1).max(200).optional(),
+        }),
+      )
+      .max(6)
+      .optional(),
+    cliente_quer: z.string().min(1).max(300).optional(),
+  });
+}
+
+/** O schema com a chave DESLIGADA — o de sempre, e o que o espelho compara. */
+export const requestHumanHandoffInputSchema = esquemaDaPassagemPedida(false);
 
 const PAYLOAD_TEACHING =
   'Campos aceitos: motivo_codigo (requested_human para pedido de uma pessoa; critical_stage para ' +
@@ -742,6 +755,12 @@ const PAYLOAD_TEACHING =
   'do que você já tentou, com o desfecho de cada um), cliente_quer (o que a pessoa está pedindo, ' +
   'nas palavras dela). `reason` ainda é aceito como sinônimo de por_que. Nada além disso. Lead, ' +
   'organização e conversa vêm do runtime, nunca do payload da tool.';
+
+/** O ensino a mais quando a versão liga a passagem silenciosa (issue #10). */
+const PAYLOAD_TEACHING_PESSOAL =
+  ' motivo_codigo também aceita mensagem_pessoal: use quando a mensagem for pessoal para o dono ' +
+  'ou a equipe (família, amigo, fornecedor) e não um atendimento. NÃO escreva nada ao contato ' +
+  'neste turno — apenas chame a ferramenta.';
 
 export type RequestHumanHandoffResult =
   | { ok: true; status: 'handoff_solicitado'; message: string }
@@ -778,17 +797,41 @@ export async function applyRequestHumanHandoff(
      * chegar. Sem gatilho não há marca (chamador sem turno), que é o caso seguro.
      */
     gatilho?: { inboundMessageId?: string };
+    /**
+     * `ai_agent_versions.handoff_silencioso_pessoal` da versão que atende
+     * (issue #10). Só com ele `true` o motivo `mensagem_pessoal` é aceito.
+     */
+    silenciosoPessoal?: boolean;
     log: Logger;
   },
   rawInput: unknown,
 ): Promise<RequestHumanHandoffResult> {
+  const silenciosoPessoal = opts.silenciosoPessoal === true;
+  const ensino = silenciosoPessoal ? PAYLOAD_TEACHING + PAYLOAD_TEACHING_PESSOAL : PAYLOAD_TEACHING;
   const forbidden = findForbiddenKey(rawInput);
   if (forbidden !== null) {
-    return { ok: false, error: { code: 'invalid_payload', message: `campos não reconhecidos: ${forbidden}. ${PAYLOAD_TEACHING}` } };
+    return { ok: false, error: { code: 'invalid_payload', message: `campos não reconhecidos: ${forbidden}. ${ensino}` } };
   }
-  const parsed = requestHumanHandoffInputSchema.safeParse(rawInput);
+  const parsed = esquemaDaPassagemPedida(silenciosoPessoal).safeParse(rawInput);
   if (!parsed.success) {
-    return { ok: false, error: { code: 'invalid_payload', message: `payload inválido em request_human_handoff (${zodIssuesSummary(parsed.error)}). ${PAYLOAD_TEACHING}` } };
+    return { ok: false, error: { code: 'invalid_payload', message: `payload inválido em request_human_handoff (${zodIssuesSummary(parsed.error)}). ${ensino}` } };
+  }
+  // OPT-OUT VENCE (issue #10, item 6). O pedido de saída já tem caminho próprio
+  // antes do modelo; esta é a segunda cerca: a passagem silenciosa não pode
+  // virar o jeito de não responder a quem pediu para parar.
+  if (
+    parsed.data.motivo_codigo === 'mensagem_pessoal' &&
+    (opts.contextoDoTurno?.pendentesDoCliente ?? []).some((texto) => ehOptOutProvavel(texto))
+  ) {
+    return {
+      ok: false,
+      error: {
+        code: 'invalid_payload',
+        message:
+          'mensagem_pessoal recusado: a mensagem parece um pedido para não receber mais mensagens. ' +
+          'Isso não é assunto pessoal — use requested_human (ou outro motivo) e avise o contato.',
+      },
+    };
   }
 
   // O que o MODELO declarou é dado NÃO CONFIÁVEL, e a montagem sabe disso: ela
@@ -857,9 +900,11 @@ export async function applyRequestHumanHandoff(
   // Agora a mensagem AFIRMA o que é verdade: o aviso ou já foi dele, antes da
   // chamada, ou foi do sistema — em nenhum dos casos há uma fala a mais.
   const jaAvisado =
-    opts.avisoAoLead === undefined || opts.avisoAoLead.avisado
-      ? 'O lead JÁ foi avisado de que uma pessoa vai assumir.'
-      : 'ATENÇÃO: não foi possível avisar o lead (o canal recusou a mensagem); a equipe foi alertada disso.';
+    motivoCodigo === 'mensagem_pessoal'
+      ? 'Nada foi enviado ao contato, de propósito: a mensagem era pessoal.'
+      : opts.avisoAoLead === undefined || opts.avisoAoLead.avisado
+        ? 'O lead JÁ foi avisado de que uma pessoa vai assumir.'
+        : 'ATENÇÃO: não foi possível avisar o lead (o canal recusou a mensagem); a equipe foi alertada disso.';
 
   return {
     ok: true,

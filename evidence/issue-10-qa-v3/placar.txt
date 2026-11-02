@@ -1,0 +1,6 @@
+Prova do #10 no turno real de WhatsApp (inbound_turn com histórico), banco local, modelo google/crm-padrao (OmniRoute), 0 erros em 40 tentativas.
+turno-real-mae-x20: 20 de 20 (passagem mensagem_pessoal, nada ao contato) — agente "PROVA Agente base do número de demo", chave ligada
+turno-real-mae-longa-x10: 10 de 10 (texto exato do dono)
+turno-real-comercial-chave-desligada-x5: controle, Barbearia v2 com chave desligada — 5/5 com resposta ao cliente; passagens: low_confidence 1, requested_human 1
+turno-real-comercial-chave-ligada-x5: Barbearia v4 com chave ligada — 5/5 com resposta ao cliente, 0 mensagem_pessoal, 0 silêncio; passagens: low_confidence 4 (cliente avisado em todas)
+Fora da régua: com gpt-5.4-mini o texto longo da mãe deu 4 de 10 — o resultado depende do modelo.

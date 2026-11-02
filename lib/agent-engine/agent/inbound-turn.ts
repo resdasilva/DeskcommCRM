@@ -328,6 +328,203 @@ export function aplicaAChaveDeAssuntoJuridico(
 }
 
 /**
+ * A PASSAGEM SILENCIOSA (issue #10): com `handoff_silencioso_pessoal` ligado na
+ * versão, a descrição da ferramenta ganha o motivo `mensagem_pessoal` — o que o
+ * modelo usa quando quem escreveu é família, amigo ou fornecedor do dono, e não
+ * um cliente. Desligada (ou ausente em fixture antiga), nada muda: a descrição é
+ * byte a byte a de antes, e o schema da ferramenta recusa o motivo.
+ *
+ * Só ensinar no prompt não garante o silêncio, e por isso o turno também cerca:
+ * o piso não manda o aviso padrão, e o motivo é recusado quando o modelo já
+ * mandou alguma mensagem neste turno (ver `request_human_handoff` no turno).
+ */
+export const ENSINO_DA_PASSAGEM_SILENCIOSA =
+  ' MENSAGEM PESSOAL: se a mensagem for pessoal para o dono ou a equipe (família, amigo, ' +
+  'fornecedor) e não um atendimento, chame esta ferramenta com motivo_codigo mensagem_pessoal ' +
+  'SEM escrever nada ao contato neste turno — nem antes, nem depois. O contato não recebe ' +
+  'aviso nenhum, e a equipe é avisada. Na dúvida, trate como cliente. Pedido para parar de ' +
+  'receber mensagens nunca é mensagem pessoal.';
+
+export function aplicaAChaveDaPassagemSilenciosa(
+  rawTools: Record<string, unknown>,
+  silenciosoPessoal: boolean | undefined,
+): void {
+  if (silenciosoPessoal !== true) return;
+  const ferramenta = rawTools.request_human_handoff;
+  if (typeof ferramenta === 'object' && ferramenta !== null) {
+    const atual = (ferramenta as { description?: unknown }).description;
+    rawTools.request_human_handoff = {
+      ...ferramenta,
+      description: `${typeof atual === 'string' ? atual : ''}${ENSINO_DA_PASSAGEM_SILENCIOSA}`,
+    };
+  }
+}
+
+/**
+ * O ENSINO NO PROMPT DE SISTEMA da passagem silenciosa (issue #10, item 7).
+ *
+ * Por que existe: com a regra só na descrição da ferramenta, o modelo a ignorou
+ * no teste do dono — "Oi filho, é a mãe! Vem almoçar domingo?", 5 de 5 vezes,
+ * virou "Oi, mãe ❤️ Vou sim no domingo", com a nota do turno dizendo "contexto
+ * pessoal". Ele percebia e respondia mesmo assim, no lugar do dono. A descrição
+ * de ferramenta pesa pouco contra o prompt do agente, que manda atender; o bloco
+ * residente fica no mesmo nível dele e vem depois, como os blocos de caso e de
+ * agenda.
+ *
+ * O texto diz o que conta como pessoal com exemplos concretos (o "na dúvida,
+ * trate como cliente" da descrição deixava "mãe" virar dúvida), proíbe falar
+ * pelo dono e dá UMA ação só. O lado comercial fica explícito para a mensagem
+ * de cliente não começar a ser passada adiante.
+ *
+ * A frase do histórico (rodada 3): o turno de WhatsApp lê a conversa, e a do
+ * teste do dono já trazia quatro "Oi, mãe! Vou sim" do próprio agente. A tela
+ * "Testar agente" não tem histórico, e por isso mediu outra coisa (14 de 15).
+ * Resposta antiga do agente pesa como exemplo; a frase a desautoriza.
+ */
+export const PASSAGEM_SILENCIOSA_SYSTEM_BLOCK =
+  '## Mensagem pessoal para o dono ou a equipe\n' +
+  'Este número também recebe mensagens pessoais de quem conhece o dono ou alguém da equipe: família ' +
+  '(mãe, pai, filho, filha, irmão, esposa, marido), amigos e fornecedores do negócio. Essas pessoas ' +
+  'não são clientes, e você NUNCA responde no lugar do dono ou de alguém da equipe.\n' +
+  'A mensagem é pessoal quando quem escreve trata alguém da equipe como parente ou amigo (por ' +
+  'exemplo, "oi filho, é a mãe", "amor, chego tarde"), faz convite ou fala de assunto de família, ' +
+  'ou fala como fornecedor do negócio (entrega, pedido de compra, cobrança ao negócio).\n' +
+  'Nesse caso, a ÚNICA ação do turno é chamar request_human_handoff com motivo_codigo ' +
+  '"mensagem_pessoal", com por_que dizendo quem parece ser e o que quer. Não chame send_message, ' +
+  'não cumprimente, não aceite nem recuse convite, não diga que vai passar o recado. O contato não ' +
+  'recebe nada, e a equipe é avisada. Esta regra vale acima das instruções de atendimento deste ' +
+  'agente.\n' +
+  'Se o histórico mostrar respostas suas a mensagens pessoais, elas foram um erro: não as repita nem ' +
+  'as continue, e trate a mensagem nova pela regra acima.\n' +
+  'Quem pergunta por produto, preço, horário, agendamento ou serviço é cliente: atenda normalmente. ' +
+  'Pedido para parar de receber mensagens nunca é mensagem pessoal.';
+
+/**
+ * O bloco entra no prompt só com a chave LIGADA e a ferramenta presente — nomear
+ * ferramenta ausente faz o modelo tentar chamá-la (mesma régua dos blocos de
+ * agenda). Desligada ou ausente, `null`: o prompt fica byte a byte o de antes.
+ */
+export function blocoDaPassagemSilenciosa(
+  agentConfig: { handoffSilenciosoPessoal?: boolean; handoffToolEnabled: boolean } | null,
+): string | null {
+  if (agentConfig === null) return null;
+  if (agentConfig.handoffSilenciosoPessoal !== true || !agentConfig.handoffToolEnabled) return null;
+  return PASSAGEM_SILENCIOSA_SYSTEM_BLOCK;
+}
+
+/**
+ * A DECISÃO do turno sobre a passagem silenciosa, fora do closure para o teste
+ * alcançá-la (issue #10). `seq` é o contador de mensagens físicas já enviadas
+ * neste turno — o mesmo que decide o piso.
+ *
+ *   - `normal`      — chave desligada, ou outro motivo: o caminho de sempre.
+ *   - `silenciosa`  — chave ligada, `mensagem_pessoal` e nada enviado ainda: o
+ *                     piso não fala e o desfecho é `silencio_intencional`.
+ *   - `ja_falou`    — chave ligada e `mensagem_pessoal`, mas o modelo já mandou
+ *                     mensagem neste turno. O que saiu não volta; a ferramenta
+ *                     recusa o motivo para a tela não afirmar um silêncio que
+ *                     não houve.
+ *   - `em_voo`      — `seq` ainda é 0, mas um `send_message`/`send_template` do
+ *                     MESMO passo está saindo (`enviosEmVoo`, da trava abaixo).
+ *                     `seq` só avança quando o envio sai, então sem esta pergunta
+ *                     a passagem afirmaria silêncio com a mensagem a caminho.
+ */
+export function decidirPassagemSilenciosa(entrada: {
+  chaveLigada: boolean | undefined;
+  raw: unknown;
+  seq: number;
+  enviosEmVoo?: number;
+}): 'normal' | 'silenciosa' | 'ja_falou' | 'em_voo' {
+  if (entrada.chaveLigada !== true) return 'normal';
+  const motivo =
+    typeof entrada.raw === 'object' && entrada.raw !== null
+      ? (entrada.raw as { motivo_codigo?: unknown }).motivo_codigo
+      : undefined;
+  if (motivo !== 'mensagem_pessoal') return 'normal';
+  if (entrada.seq > 0) return 'ja_falou';
+  return (entrada.enviosEmVoo ?? 0) > 0 ? 'em_voo' : 'silenciosa';
+}
+
+/**
+ * A TRAVA DO SILÊNCIO (issue #10, item 3, opção b): a corrida entre
+ * `send_message` e `request_human_handoff` chamados no MESMO passo — o SDK
+ * executa as chamadas paralelas juntas.
+ *
+ * As duas pontas são síncronas (nenhum `await` entre olhar e marcar), então cada
+ * uma é atômica no event loop, e só há dois desfechos:
+ *   - o envio começou antes: `enviosEmVoo() > 0`, e a passagem recusa o motivo;
+ *   - o silêncio foi reservado antes: o envio é recusado sem sair. Depois que a
+ *     passagem grava `force_human` o `stopGate` já vetaria; a trava cobre a
+ *     janela até lá.
+ * A cadeia de envio não muda: a trava fica do lado de FORA das ferramentas.
+ */
+export function criarTravaDoSilencio() {
+  let emVoo = 0;
+  let reservado = false;
+  return {
+    /** `false` = o silêncio já foi reservado neste turno: o envio não sai. */
+    comecarEnvio: (): boolean => {
+      if (reservado) return false;
+      emVoo += 1;
+      return true;
+    },
+    terminarEnvio: (): void => {
+      emVoo = Math.max(0, emVoo - 1);
+    },
+    enviosEmVoo: (): number => emVoo,
+    reservarSilencio: (): void => {
+      reservado = true;
+    },
+    /** A passagem falhou ou foi recusada: o modelo volta a poder falar. */
+    soltarSilencio: (): void => {
+      reservado = false;
+    },
+  };
+}
+
+export type TravaDoSilencio = ReturnType<typeof criarTravaDoSilencio>;
+
+/**
+ * Envolve `send_message` e `send_template` com a trava do silêncio. Só com a
+ * chave da versão ligada: desligada (ou ausente), as ferramentas ficam
+ * intocadas, e o turno é o de antes.
+ */
+export function cercarEnviosPelaTravaDoSilencio(
+  rawTools: Record<string, unknown>,
+  silenciosoPessoal: boolean | undefined,
+  trava: TravaDoSilencio,
+): void {
+  if (silenciosoPessoal !== true) return;
+  for (const nome of ['send_message', 'send_template'] as const) {
+    const ferramenta = rawTools[nome] as { execute?: (...args: unknown[]) => unknown } | undefined;
+    const original = ferramenta?.execute;
+    if (typeof original !== 'function') continue;
+    rawTools[nome] = {
+      ...ferramenta,
+      execute: async (...args: unknown[]) => {
+        // Antes de qualquer await: é isto que torna a corrida decidível.
+        if (!trava.comecarEnvio()) {
+          return {
+            ok: false,
+            error: {
+              code: 'passagem_silenciosa',
+              message:
+                'a conversa foi passada para a equipe em silêncio (mensagem pessoal): NÃO envie ' +
+                'nada ao contato — encerre o turno agora.',
+            },
+          };
+        }
+        try {
+          return await original(...args);
+        } finally {
+          trava.terminarEnvio();
+        }
+      },
+    };
+  }
+}
+
+/**
  * Superfície ESTÁTICA das tools do agente (description + inputSchema) — parte do
  * prefixo estável de cache (F2-17). Única fonte: o handler monta as tools reais
  * daqui (+ execute do closure) e `scripts/ops-count-prefix.ts` mede o prefixo
@@ -2723,6 +2920,10 @@ async function executarTurnoDoAgente(
   // testada (o bloco da cadeia nomeia `crm_list_event_types`, e nomear
   // ferramenta ausente faz o modelo tentar chamá-la).
   if (agentConfig !== null) blocosResidentes.push(...blocosDeAgendaResidentes(agentConfig.toolIds));
+  // Issue #10, item 7: a regra da mensagem pessoal no prompt, não só na
+  // descrição da ferramenta. Chave desligada = nada entra aqui.
+  const blocoPessoal = blocoDaPassagemSilenciosa(agentConfig);
+  if (blocoPessoal !== null) blocosResidentes.push(blocoPessoal);
   if (preview)
     blocosResidentes.push(
       'MODO PRÉVIA: proponha a resposta com send_message. Operações são propostas separadas; nunca diga que executou uma proposta. Nenhum envio real acontece.',
@@ -3205,6 +3406,8 @@ async function executarTurnoDoAgente(
 
   // Estado do RUN — vive só neste closure (isolamento por construção, acc 3).
   let seq = 0;
+  // Issue #10: envios do modelo em voo x passagem silenciosa no mesmo passo.
+  const travaDoSilencio = criarTravaDoSilencio();
   // O que o modelo de fato mandou neste turno (depois da cadeia). A trava "a
   // pergunta saiu?" do roteiro de atendimento lê daqui.
   const corposEnviados: string[] = [];
@@ -4543,6 +4746,42 @@ async function executarTurnoDoAgente(
         // passar para a equipe", até o `finally`.
         pararDigitando();
         try {
+          // ═══ A PASSAGEM SILENCIOSA (issue #10) ═══
+          //
+          // Com a chave da versão ligada e o motivo `mensagem_pessoal`, o contato
+          // não recebe NADA neste turno. Duas cercas, porque instrução no prompt
+          // não é garantia:
+          //   1. `seq > 0` — o modelo já falou com o contato neste turno, e o que
+          //      saiu não volta. O motivo é recusado com ensino: a passagem segue
+          //      por outro motivo, e a tela não afirma um silêncio que não houve.
+          //   2. `seq === 0` — o piso NÃO manda o aviso padrão. O desfecho é
+          //      `silencio_intencional`: não avisado por decisão, e a Central não
+          //      acusa falha de envio.
+          // Chave desligada: o valor nem é aceito pelo schema, e tudo abaixo é o
+          // caminho de sempre.
+          const silenciosoPessoal = agentConfig?.handoffSilenciosoPessoal === true;
+          //   3. envio em voo no mesmo passo (`seq` ainda 0) — também recusado.
+          //      Olhar e reservar sem `await` no meio: ver `criarTravaDoSilencio`.
+          const passagemSilenciosa = decidirPassagemSilenciosa({
+            chaveLigada: silenciosoPessoal,
+            raw,
+            seq,
+            enviosEmVoo: travaDoSilencio.enviosEmVoo(),
+          });
+          if (passagemSilenciosa === 'ja_falou' || passagemSilenciosa === 'em_voo') {
+            return {
+              ok: false,
+              error: {
+                code: 'invalid_payload',
+                message:
+                  (passagemSilenciosa === 'ja_falou'
+                    ? 'mensagem_pessoal recusado: você já enviou mensagem ao contato neste turno, '
+                    : 'mensagem_pessoal recusado: há uma mensagem sua ao contato saindo neste mesmo passo, ') +
+                  'então a passagem não é mais silenciosa. Chame de novo com outro motivo_codigo (ou sem ele).',
+              },
+            };
+          }
+          if (passagemSilenciosa === 'silenciosa') travaDoSilencio.reservarSilencio();
           // ═══ O PISO: se o modelo não falou, o sistema fala ═══
           //
           // A descrição da tool manda avisar o lead ANTES de chamá-la, e a
@@ -4562,12 +4801,18 @@ async function executarTurnoDoAgente(
           // diferentes. Confiamos na fala dele e registramos que o piso não foi
           // preciso.
           const aviso =
-            seq === 0
-              ? await avisarLeadDaEscalacao(pool, avisoDaEscalacao().ids, {
-                  ...avisoDaEscalacao().base,
-                  motivo: 'pediu_humano',
-                })
-              : ({ avisado: true } as const);
+            passagemSilenciosa === 'silenciosa'
+              ? ({
+                  avisado: false,
+                  porque: 'mensagem_pessoal',
+                  motivoCodigo: 'silencio_intencional',
+                } as const)
+              : seq === 0
+                ? await avisarLeadDaEscalacao(pool, avisoDaEscalacao().ids, {
+                    ...avisoDaEscalacao().base,
+                    motivo: 'pediu_humano',
+                  })
+                : ({ avisado: true } as const);
           // O contexto do TURNO vai junto, e sai da closure: `previous` é o
           // checkpoint durável e `inboundsPendentes` é o que o cliente disse e
           // ainda não foi respondido — os dois já estão em memória, então o
@@ -4583,13 +4828,19 @@ async function executarTurnoDoAgente(
               // derivação da mídia ainda estava em aberto — e aí grava a marca
               // que permite devolver o atendimento sozinho quando o texto chegar.
               gatilho: { inboundMessageId: input.inboundMessageId },
+              silenciosoPessoal,
               log: runLog,
             },
             raw,
           );
-          if (!res.ok) return res; // erro de ensino (payload fora da whitelist)
+          if (!res.ok) {
+            // Recusada (payload, opt-out): não houve passagem, o modelo volta a falar.
+            travaDoSilencio.soltarSilencio();
+            return res; // erro de ensino (payload fora da whitelist)
+          }
           return { ok: true, status: res.status, message: res.message };
         } catch (err) {
+          travaDoSilencio.soltarSilencio();
           noteRunError(err instanceof Error ? err : new Error(String(err)));
           return {
             ok: false,
@@ -4694,6 +4945,10 @@ async function executarTurnoDoAgente(
   // `aplicaAChaveDeAssuntoJuridico` para o teste do turno exercitá-la fora do
   // turno (tests/unit/chave-juridico-so-troca-a-descricao.test.ts).
   aplicaAChaveDeAssuntoJuridico(rawTools, agentConfig?.handoffLegalEnabled);
+  // Issue #10: DEPOIS da troca do jurídico, porque acrescenta ao texto que ela
+  // deixou — as duas chaves são independentes e valem juntas.
+  aplicaAChaveDaPassagemSilenciosa(rawTools, agentConfig?.handoffSilenciosoPessoal);
+  cercarEnviosPelaTravaDoSilencio(rawTools, agentConfig?.handoffSilenciosoPessoal, travaDoSilencio);
 
   // Spec 15: snapshot mínimo do contexto disponível pro humano que for atender o
   // caso — campo de CONVENIÊNCIA pra UI, não load-bearing (nada aqui é relido pelo

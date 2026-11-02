@@ -9395,5 +9395,8 @@
   "Etiquetas de ativação": "Activation tags",
   "Etiquetas que ativam (opcional)": "Tags that activate it (optional)",
   "odonto, clínica": "dental, clinic",
-  "Se a conversa ou o contato tiver uma destas etiquetas, a skill entra mesmo sem a palavra-chave.": "If the conversation or the contact has one of these tags, the skill is used even without the keyword."
+  "Se a conversa ou o contato tiver uma destas etiquetas, a skill entra mesmo sem a palavra-chave.": "If the conversation or the contact has one of these tags, the skill is used even without the keyword.",
+  "A mensagem parece pessoal para o dono ou a equipe, e não um atendimento": "The message looks personal to the owner or the team, not a customer conversation",
+  "A mensagem era pessoal, e o assistente não respondeu de propósito": "The message was personal, and the assistant did not reply on purpose",
+  "O cliente não foi avisado, de propósito: a mensagem era pessoal.": "The client was not notified, on purpose: the message was personal."
 }

@@ -232,8 +232,11 @@ export function montarCartoesDaPassagem(
       falaDoCliente: anonimizada ? null : texto(p.notes),
       textoDeQuemPassou: anonimizada ? null : texto(p.content),
       tentativas: anonimizada ? [] : tentativasLegiveis(p.tentativas),
+      // `silencio_intencional` (issue #10) também vira `null`: ninguém TENTOU
+      // avisar, de propósito, porque a mensagem era pessoal. O motivo do cartão
+      // já diz isso; o ⚠️ de "esperando sem saber" seria falso.
       aviso:
-        anonimizada || p.cliente_avisado === null
+        anonimizada || p.cliente_avisado === null || p.aviso_motivo_codigo === "silencio_intencional"
           ? null
           : {
               avisado: p.cliente_avisado,
