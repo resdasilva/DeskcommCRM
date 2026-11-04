@@ -151,7 +151,6 @@ function agendaDaOrg(): Record<string, Linha[]> {
     ],
     calendar_external_events: [],
     calendar_connections: [],
-    calendar_selected_external_events: [],
   };
 }
 
