@@ -84,7 +84,7 @@ export interface IngestDeGrupoDb {
   ): Promise<void>;
   /** O grupo do aviso de agendamento, o interruptor e quem pode marcar. `null` = sem aviso. */
   marcacaoPeloGrupo(org: string): Promise<MarcacaoPeloGrupo | null>;
-  /** Anota o pedido em `event_log`. Nada sai do banco: quem atende é a issue #6. */
+  /** Anota o pedido em `event_log`. Nada sai do banco: quem atende é `lib/agenda/pedido-pelo-grupo.handler.ts`. */
   pedirAgendaPeloGrupo(pedido: PedidoDeAgendaPeloGrupo): Promise<void>;
 }
 

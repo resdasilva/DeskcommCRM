@@ -1,0 +1,9 @@
+     × aspas, vírgula, parênteses e curingas do nome não chegam ao filtro .or 18ms
+     × o nome sai de nomeDoContato: name antes de display_name, id técnico cai no nome pedido 16ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  |produto| lib/agenda/pedido-pelo-grupo.handler-clientes.test.ts > clientesPorNome — a consulta de produção > aspas, vírgula, parênteses e curingas do nome não chegam ao filtro .or
+AssertionError: expected 'Ra' to contain 'Ra fa el'
+ FAIL  |produto| lib/agenda/pedido-pelo-grupo.handler-clientes.test.ts > clientesPorNome — a consulta de produção > o nome sai de nomeDoContato: name antes de display_name, id técnico cai no nome pedido
+AssertionError: expected [ { id: 'c1', nome: 'Rafa' }, …(2) ] to deeply equal [ …(3) ]
+ Test Files  1 failed (1)
+      Tests  2 failed | 1 passed (3)

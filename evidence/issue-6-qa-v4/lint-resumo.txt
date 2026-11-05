@@ -1,0 +1,3 @@
+✖ 605 problems (0 errors, 605 warnings)
+  0 errors and 12 warnings potentially fixable with the `--fix` option.
+

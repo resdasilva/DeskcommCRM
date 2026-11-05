@@ -69,13 +69,6 @@ const SEM_CONSUMIDOR_CONHECIDO: Record<string, string> = {
     "arquitetura está aberta na issue #129; enquanto ela não sai, a mensagem " +
     "presa deixou de ser invisível — o cron recover-stuck-messages a marca como " +
     "falha e abre aviso na Central.",
-  "agenda.group_booking_requested":
-    "Emitido por lib/grupos/ingest.ts quando um número autorizado escreve no " +
-    "grupo do aviso de agendamento com \"marcar pelo grupo\" ligado (issue #5 do " +
-    "board resdasilva/DeskcommCRM). A fatia foi cortada de propósito em duas: " +
-    "esta só anota o pedido, sem efeito fora do banco, e o consumidor — o agente " +
-    "que marca e confirma no grupo — é a issue #6. Enquanto ela não entra, a " +
-    "linha fica `pending` e nada responde no grupo, que é o comportamento de antes.",
 };
 
 function arquivos(dir: string): string[] {

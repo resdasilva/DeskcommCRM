@@ -32,6 +32,7 @@ import { conversaoDeVendaHandler } from "@/lib/conversoes/envio.handler";
 import { conversaoDeQualificacaoHandler } from "@/lib/conversoes/qualificacao.handler";
 import { conversaoDeEtapaMetaHandler } from "@/lib/conversoes/etapa-meta.handler";
 import { avisoDeAgendamentoNoWhatsAppHandler } from "@/lib/agenda/aviso-de-agendamento.handler";
+import { pedidoDeAgendaPeloGrupoHandler } from "@/lib/agenda/pedido-pelo-grupo.handler";
 import { avisoDeCasoAoSuporteHandler } from "@/lib/escalacao/aviso-ao-suporte.handler";
 import { casoNaCentralHandler } from "@/lib/escalacao/caso-na-central.handler";
 import { followupGatilhoCasoHandler } from "@/lib/followup/gatilho-caso.handler";
@@ -85,6 +86,8 @@ const PULA: EventHandler[] = [
   avisoDeCasoAoSuporteHandler,
   avisoDePropostaNoWhatsAppHandler,
   avisoDeAgendamentoNoWhatsAppHandler,
+  // Issue #6 — chama o modelo e responde no grupo: custa dinheiro e sai para fora.
+  pedidoDeAgendaPeloGrupoHandler,
   conversaoDeVendaHandler,
   conversaoDeQualificacaoHandler,
   conversaoDeEtapaMetaHandler,

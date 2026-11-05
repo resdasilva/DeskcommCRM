@@ -1,0 +1,3 @@
+> deskcomm-crm@0.1.0 typecheck F:\Projetos Ativos\DeskcommCRM\DeskcommCRM\.claude\worktrees\issue-6-qa
+> tsc --noEmit -p tsconfig.typecheck.json
+exit=0 (NODE_OPTIONS=--max-old-space-size=8192)

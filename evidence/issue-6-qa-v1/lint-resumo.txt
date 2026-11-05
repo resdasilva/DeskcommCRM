@@ -1,0 +1,11 @@
+  79:5   warning  Unused eslint-disable directive (no problems were reported from 'react-hooks/exhaustive-deps')
+  152:14  warning  Unused eslint-disable directive (no problems were reported from '@next/next/no-img-element')
+  142:3  warning  Unused eslint-disable directive (no problems were reported from 'no-var')
+  154:3  warning  Unused eslint-disable directive (no problems were reported from 'no-var')
+   96:3  warning  Unused eslint-disable directive (no problems were reported from 'no-var')
+  108:3  warning  Unused eslint-disable directive (no problems were reported from 'no-var')
+  120:3  warning  Unused eslint-disable directive (no problems were reported from 'no-control-regex')
+  28:5  warning  Unused eslint-disable directive (no problems were reported from 'no-console')
+  32:5  warning  Unused eslint-disable directive (no problems were reported from 'no-console')
+✖ 605 problems (0 errors, 605 warnings)
+  0 errors and 12 warnings potentially fixable with the `--fix` option.

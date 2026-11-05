@@ -17,7 +17,8 @@
  * pedido: é a empresa falando, inclusive a confirmação que a fatia seguinte
  * vai mandar — contá-la como pedido faria o agente responder a si mesmo.
  *
- * Esta fatia só ANOTA o pedido em `event_log`; quem o lê é a issue #6.
+ * Esta fatia só ANOTA o pedido em `event_log`; quem o atende é
+ * `./pedido-pelo-grupo-atendimento.ts` (issue #6), que pergunta esta regra de novo.
  */
 import { phoneLookupVariants } from "@/lib/channels/phone-variants";
 
