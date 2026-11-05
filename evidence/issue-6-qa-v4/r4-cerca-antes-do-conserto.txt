@@ -1,0 +1,47 @@
+[33m(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+  - ESM syntax in a file loaded as CommonJS (vitest.cercas.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.[39m
+[33m(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+  - ESM syntax in a file loaded as CommonJS (vitest.cercas.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.[39m
+[33m(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+  - ESM syntax in a file loaded as CommonJS (vitest.cercas.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.[39m
+
+ RUN  v4.1.11 F:/Projetos Ativos/DeskcommCRM/DeskcommCRM/.claude/worktrees/issue-6-qa
+
+ ❯ |cercas| tests/unit/ocupacao-do-google-vem-de-um-lugar-so.test.ts (3 tests | 1 failed) 137ms
+     × nenhum arquivo de app/ ou lib/agenda/ além do dono nomeia a view 135ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |cercas| tests/unit/ocupacao-do-google-vem-de-um-lugar-so.test.ts > a ocupação do Google tem UMA leitura, e ela é lib/agenda/ocupacao-externa.ts > nenhum arquivo de app/ ou lib/agenda/ além do dono nomeia a view
+AssertionError: só lib/agenda/ocupacao-externa.ts pode ler "calendar_selected_external_events" — uma segunda consulta é a divergência da #525 de volta: expected [ Array(1) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "lib/agenda/pedido-pelo-grupo.prova-em-par.test.ts",
++ ]
+
+ ❯ tests/unit/ocupacao-do-google-vem-de-um-lugar-so.test.ts:79:7
+     77|       infratores,
+     78|       `só ${DONO} pode ler "${VIEW}" — uma segunda consulta é a diverg…
+     79|     ).toEqual([]);
+       |       ^
+     80|   });
+     81|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 2 passed (3)
+   Start at  19:59:31
+   Duration  523ms (transform 31ms, setup 197ms, import 11ms, tests 137ms, environment 0ms)
+
