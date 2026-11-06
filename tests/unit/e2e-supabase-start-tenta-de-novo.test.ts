@@ -24,6 +24,8 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
+import { paraBash, pathComNaFrente } from "./helpers/caminho";
+import { scriptEmArquivo } from "./helpers/script-bash";
 
 const E2E = path.resolve(__dirname, "../../.github/workflows/e2e.yml");
 
@@ -71,16 +73,16 @@ process.exit(s.falha ? 1 : 0);
 `,
   );
   const sleep = path.join(bin, "sleep");
-  writeFileSync(sleep, `#!/bin/sh\necho "sleep $1" >> "${raiz}/chamadas.log"\n`);
+  writeFileSync(sleep, `#!/bin/sh\necho "sleep $1" >> "${paraBash(raiz)}/chamadas.log"\n`);
   chmodSync(supabase, 0o755);
   chmodSync(sleep, 0o755);
 
   // O passo escreve em /tmp; aqui cada rodada tem o seu.
-  const script = scriptDoPasso().replaceAll("/tmp/", `${raiz}/`);
+  const script = scriptDoPasso().replaceAll("/tmp/", `${paraBash(raiz)}/`);
   // `bash -e`, o mesmo shell que o GitHub dá a um `run:` sem `shell:`.
-  const r = spawnSync("bash", ["-e", "-c", script], {
+  const r = spawnSync("bash", ["-e", scriptEmArquivo(script)], {
     cwd: path.join(raiz, "repo"),
-    env: { ...process.env, PATH: `${bin}:${process.env.PATH}` },
+    env: { ...process.env, PATH: pathComNaFrente(bin) },
     encoding: "utf-8",
   });
   const chamadas = readFileSync(path.join(raiz, "chamadas.log"), "utf-8").trim().split("\n");

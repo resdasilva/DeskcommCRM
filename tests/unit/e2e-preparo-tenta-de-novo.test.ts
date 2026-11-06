@@ -16,6 +16,8 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
+import { comoOBashVe, paraBash, pathMinimo } from "./helpers/caminho";
+import { scriptEmArquivo } from "./helpers/script-bash";
 
 const E2E = path.resolve(__dirname, "../../.github/workflows/e2e.yml");
 
@@ -44,6 +46,8 @@ function rodar(passo: string, roteiro: number[]) {
   const bin = path.join(raiz, "bin");
   mkdirSync(bin);
   const log = path.join(raiz, "chamadas.log");
+  // Os caminhos vão ESCRITOS nos falsos: no Windows, em barra normal.
+  const [logB, raizB, binB] = [log, raiz, bin].map(paraBash);
   writeFileSync(path.join(raiz, "roteiro"), roteiro.join("\n") + "\n");
   const falso = (nome: string, corpo: string) => {
     writeFileSync(path.join(bin, nome), `#!/bin/sh\n${corpo}\n`);
@@ -52,22 +56,22 @@ function rodar(passo: string, roteiro: number[]) {
   // O sucesso "instala" um ffmpeg com os dois encoders, para a sonda do passo passar.
   falso(
     "timeout",
-    `echo "timeout $*" >> "${log}"
-rc=$(head -1 "${raiz}/roteiro"); sed -i.bak 1d "${raiz}/roteiro"
-if [ "$rc" = 0 ]; then printf '#!/bin/sh\\necho " A..... aac   AAC (Advanced Audio Coding)"\\necho " A..... libopus   libopus Opus"\\n' > "${bin}/ffmpeg"; chmod +x "${bin}/ffmpeg"; fi
+    `echo "timeout $*" >> "${logB}"
+rc=$(head -1 "${raizB}/roteiro"); sed -i.bak 1d "${raizB}/roteiro"
+if [ "$rc" = 0 ]; then printf '#!/bin/sh\\necho " A..... aac   AAC (Advanced Audio Coding)"\\necho " A..... libopus   libopus Opus"\\n' > "${binB}/ffmpeg"; chmod +x "${binB}/ffmpeg"; fi
 exit "$rc"`,
   );
-  falso("sudo", `echo "sudo $*" >> "${log}"`);
-  const r = spawnSync("bash", ["-e", "-c", scriptDoPasso(passo)], {
+  falso("sudo", `echo "sudo $*" >> "${logB}"`);
+  const r = spawnSync("bash", ["-e", scriptEmArquivo(scriptDoPasso(passo))], {
     // PATH mínimo: um ffmpeg da máquina de quem roda o teste pularia o laço.
-    env: { ...process.env, PATH: `${bin}:/usr/bin:/bin`, HOME: raiz },
+    env: { ...process.env, PATH: pathMinimo(bin), HOME: raiz },
     encoding: "utf-8",
   });
   return {
     status: r.status,
     saida: r.stdout + r.stderr,
     chamadas: readFileSync(log, "utf-8").trim().split("\n"),
-    home: raiz,
+    home: comoOBashVe(raiz),
   };
 }
 

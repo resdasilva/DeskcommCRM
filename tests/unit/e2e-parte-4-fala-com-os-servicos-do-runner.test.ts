@@ -30,10 +30,14 @@
 import { spawn, spawnSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as http from "node:http";
+import * as net from "node:net";
 import type { AddressInfo } from "node:net";
 import * as os from "node:os";
 import * as path from "node:path";
 import { describe, expect, it } from "vitest";
+
+import { paraBash } from "./helpers/caminho";
+import { scriptEmArquivo } from "./helpers/script-bash";
 
 const RAIZ = path.resolve(__dirname, "../..");
 const ler = (rel: string) => fs.readFileSync(path.join(RAIZ, rel), "utf8");
@@ -133,7 +137,7 @@ describe("a parte 4 do e2e fala com os serviços que ela sobe", () => {
     const githubEnv = path.join(pasta, "github_env");
     fs.writeFileSync(githubEnv, "");
 
-    const r = spawnSync("bash", ["-c", trecho.replaceAll("/tmp/", `${pasta}/`)], {
+    const r = spawnSync("bash", [scriptEmArquivo(trecho.replaceAll("/tmp/", `${paraBash(pasta)}/`))], {
       cwd: pasta,
       encoding: "utf8",
       env: { ...process.env, PATH, GITHUB_ENV: githubEnv },
@@ -152,19 +156,35 @@ describe("a parte 4 do e2e fala com os serviços que ela sobe", () => {
     expect(servidor.SENTINELA, "a reescrita apagou linhas que não eram da parte 4").toBe("fica");
   });
 
-  it("a espera pelo Redis falha FECHADO quando o serviço não responde", () => {
+  it("a espera pelo Redis falha FECHADO quando o serviço não responde", async () => {
     const trecho = secao(PASSO, "# 3. A cadeia de Redis", "# 4. Alguns scripts");
     expect(trecho, "a sonda deixou de mirar a porta publicada do redis-http").toContain(
       "127.0.0.1:8079",
     );
     const { PATH } = pathComShims();
-    // A porta 1 não tem ninguém escutando: a sonda recebe "connection refused"
-    // na hora, e o `sleep` de mentira faz as voltas custarem nada.
-    const r = spawnSync(
-      "bash",
-      ["-c", `${trecho.replaceAll("127.0.0.1:8079", "127.0.0.1:1")}\necho SEGUIU`],
-      { encoding: "utf8", env: { ...process.env, PATH } },
-    );
+    // Um serviço que aceita a conexão e a fecha sem responder: a sonda nunca
+    // recebe PONG, e o `sleep` de mentira faz as voltas custarem nada.
+    //
+    // Era a porta 1, sem ninguém escutando. Em Linux o "connection refused"
+    // chega na hora; no Windows o sistema insiste por ~2 s antes de recusar, e
+    // as 30 voltas estouravam o prazo do caso sem medir a regra. Fechar a
+    // conexão responde na hora nos dois.
+    const mudo = net.createServer((socket) => socket.destroy());
+    await new Promise<void>((ok) => mudo.listen(0, "127.0.0.1", ok));
+    const porta = (mudo.address() as AddressInfo).port;
+
+    const r = await new Promise<{ status: number | null; stdout: string }>((ok) => {
+      const p = spawn(
+        "bash",
+        [scriptEmArquivo(`${trecho.replaceAll("127.0.0.1:8079", `127.0.0.1:${porta}`)}\necho SEGUIU`)],
+        { env: { ...process.env, PATH } },
+      );
+      let stdout = "";
+      p.stdout.on("data", (d: Buffer) => (stdout += d.toString()));
+      p.on("close", (status) => ok({ status, stdout }));
+    });
+    await new Promise<void>((ok) => mudo.close(() => ok()));
+
     expect(r.stdout, "a espera terminou e o passo SEGUIU sem Redis — falha aberta").not.toContain(
       "SEGUIU",
     );
@@ -195,7 +215,7 @@ describe("a parte 4 do e2e fala com os serviços que ela sobe", () => {
     const r = await new Promise<{ status: number | null; stdout: string }>((ok) => {
       const p = spawn(
         "bash",
-        ["-c", `${trecho.replaceAll("127.0.0.1:8079", `127.0.0.1:${porta}`)}\necho SEGUIU`],
+        [scriptEmArquivo(`${trecho.replaceAll("127.0.0.1:8079", `127.0.0.1:${porta}`)}\necho SEGUIU`)],
         { env: { ...process.env, PATH } },
       );
       let stdout = "";

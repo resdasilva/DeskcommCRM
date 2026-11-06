@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import path from "node:path";
 
@@ -83,4 +84,15 @@ export function pathMinimo(...pastas: string[]): string {
   const doBash = com("bash.exe", "sed.exe");
   const doGit = com("git.exe");
   return [...pastas, ...[doBash, doGit].filter((p): p is string => Boolean(p))].join(path.delimiter);
+}
+
+/**
+ * O caminho como o bash o devolve quando o recebe por variável de ambiente
+ * (`HOME`, `TMPDIR`): no Windows o bash do Git o converte para a forma dele
+ * (`C:\Users\x\AppData\Local\Temp\y` vira `/tmp/y`), e é essa forma que
+ * aparece no que o script escreve. Em Linux/macOS é a identidade.
+ */
+export function comoOBashVe(caminho: string): string {
+  if (process.platform !== "win32") return caminho;
+  return execFileSync("cygpath", ["-u", caminho], { encoding: "utf8" }).trim();
 }
