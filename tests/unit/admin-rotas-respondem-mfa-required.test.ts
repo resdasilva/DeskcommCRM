@@ -150,7 +150,7 @@ describe("cerca: o catch do guarda não engole a recusa nomeada", () => {
     return achou;
   }
 
-  const rotas = arquivosDeCodigo(["app/api"]).filter((f) => f.endsWith("/route.ts"));
+  const rotas = arquivosDeCodigo(["app/api"]).filter((f) => caminhoRelativo(f).endsWith("/route.ts"));
   const guardados: { arquivo: string; traduz: boolean }[] = [];
   for (const arquivo of rotas) {
     const sf = ts.createSourceFile(arquivo, readFileSync(arquivo, "utf-8"), ts.ScriptTarget.Latest, true);

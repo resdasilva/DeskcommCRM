@@ -10,11 +10,13 @@
  * não só dessa — enquanto as cópias existirem, elas têm que ser idênticas.
  */
 import { readdirSync, readFileSync } from "node:fs";
-import { join, relative } from "node:path";
+import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
 import { agentMcpCreateSchema, versionCreateSchema } from "@/lib/ai/agents/validation";
+
+import { relativoEmBarraNormal } from "./helpers/caminho";
 
 const ROOT = process.cwd();
 
@@ -166,7 +168,7 @@ function fontesDeCodigo(): Fonte[] {
       // fixture, não código que grava linha nenhuma.
       if (!/\.tsx?$/.test(entrada.name)) continue;
       if (/\.test\.tsx?$/.test(entrada.name) || entrada.name.endsWith(".d.ts")) continue;
-      fontes.push({ rel: relative(ROOT, absoluto), source: readFileSync(absoluto, "utf8") });
+      fontes.push({ rel: relativoEmBarraNormal(ROOT, absoluto), source: readFileSync(absoluto, "utf8") });
     }
   };
   for (const raiz of RAIZES_DE_CODIGO) andar(join(ROOT, raiz));

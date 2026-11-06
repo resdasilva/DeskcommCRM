@@ -28,6 +28,8 @@ import { describe, expect, it } from "vitest";
 
 import { checkG3 } from "@/lib/ai/handoff/triggers";
 
+import { emBarraNormal, relativoEmBarraNormal } from "./helpers/caminho";
+
 const TEXTO_SEGURO = "Bom dia! Nosso horário de atendimento é das 9h às 18h.";
 const TEXTO_INSEGURO = "Não tenho certeza, preciso verificar isso com a equipe.";
 
@@ -132,7 +134,7 @@ describe("a classe inteira: ausência de medição não vira zero nos caminhos d
     // para sempre — e o zero seria indistinguível de "nada a reprovar".
     expect(arquivos.length, "a varredura não encontrou arquivo nenhum — sonda morta").toBeGreaterThan(50);
     expect(
-      arquivos.some((f) => f.endsWith("workers/ai-response-worker.ts")),
+      arquivos.some((f) => emBarraNormal(f).endsWith("workers/ai-response-worker.ts")),
       "o arquivo que originou esta cerca precisa estar no conjunto varrido",
     ).toBe(true);
   });
@@ -143,7 +145,7 @@ describe("a classe inteira: ausência de medição não vira zero nos caminhos d
       const linhas = readFileSync(arquivo, "utf8").split("\n");
       linhas.forEach((linha, i) => {
         if (!ehComentario(linha) && VOCABULARIO.test(linha) && INVENTA_ZERO.test(linha)) {
-          infratores.push(`${path.relative(process.cwd(), arquivo)}:${i + 1}  ${linha.trim()}`);
+          infratores.push(`${relativoEmBarraNormal(process.cwd(), arquivo)}:${i + 1}  ${linha.trim()}`);
         }
       });
     }

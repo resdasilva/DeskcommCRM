@@ -39,6 +39,7 @@ import {
   type PassoDeDemonstracao,
 } from "../../scripts/lib/followups-de-demonstracao";
 import { GRAFO_DE_DEMONSTRACAO } from "../../scripts/lib/grafo-de-demonstracao";
+import { relativoEmBarraNormal } from "./helpers/caminho";
 
 const RAIZ = process.cwd();
 const ORG = "87500000-0000-4000-8000-0000000000f1";
@@ -82,7 +83,7 @@ describe("vocabulário da trilha de demonstração", () => {
     // Sem isto, uma regex que deixasse de casar produziria zero escritores — e o
     // caso abaixo reprovaria por outro motivo, ou, com a checagem invertida,
     // passaria medindo nada.
-    const relativos = ESCRITORES.map((a) => path.relative(RAIZ, a));
+    const relativos = ESCRITORES.map((a) => relativoEmBarraNormal(RAIZ, a));
     expect(relativos).toEqual(
       expect.arrayContaining(["lib/followup/engine.ts", "lib/followup/turn-bridge.ts", "lib/followup/reactivity.ts"]),
     );

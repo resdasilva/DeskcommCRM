@@ -10,6 +10,8 @@ import { patchDoNome } from "@/lib/contacts/nome-da-agenda";
 import { nomeDoContato, rotuloDoContato, rotuloParaAEquipe } from "@/lib/contacts/rotulo-do-contato";
 import { interpolateTemplate } from "@/lib/inbox/template-vars";
 
+import { emBarraNormal } from "./helpers/caminho";
+
 /**
  * O nome salvo na agenda do celular NUNCA chega ao cliente (PR #2439, decisão
  * do mantenedor: opção A).
@@ -140,6 +142,7 @@ describe("quem lê a coluna", () => {
     const citam = ["app", "lib", "components", "hooks", "workers"]
       .flatMap((d) => arquivos(d))
       .filter((f) => readFileSync(f, "utf8").includes("address_book_name"))
+      .map(emBarraNormal)
       .sort();
     expect(citam).toEqual(Object.keys(QUEM_LE_A_AGENDA).sort());
   });

@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readdirSync, readFileSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
+import { relativoEmBarraNormal } from "./helpers/caminho";
 
 /**
  * A tela de Agentes de IA diz "agente", não "agent" (#2997).
@@ -27,7 +28,7 @@ describe("Agentes de IA: o texto da tela diz agente", () => {
   const arquivos = arquivosDaTela(PASTA);
 
   it("a varredura alcança a tela (guarda contra sonda vazia)", () => {
-    expect(arquivos.map((a) => relative(PASTA, a))).toEqual(
+    expect(arquivos.map((a) => relativoEmBarraNormal(PASTA, a))).toEqual(
       expect.arrayContaining(["_components/AgentRowMenu.tsx", "[id]/_components/AgentForm.tsx"]),
     );
   });

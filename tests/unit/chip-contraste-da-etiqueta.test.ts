@@ -43,6 +43,8 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
+import { emBarraNormal } from "./helpers/caminho";
+
 import { describe, expect, it } from "vitest";
 
 import {
@@ -87,7 +89,7 @@ function arquivosDe(pasta: string, extensao: string): string[] {
 /** Todo `.tsx` da UI, com o caminho relativo à raiz do repo. */
 function arquivosDaUi(): string[] {
   return [...arquivosDe(join(raiz, "app"), ".tsx"), ...arquivosDe(join(raiz, "components"), ".tsx")].map(
-    (c) => c.slice(raiz.length + 1),
+    (c) => emBarraNormal(c.slice(raiz.length + 1)),
   );
 }
 

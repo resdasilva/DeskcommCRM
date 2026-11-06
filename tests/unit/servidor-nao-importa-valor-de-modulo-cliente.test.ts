@@ -1,6 +1,8 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 
+import { relativoEmBarraNormal } from "./helpers/caminho";
+
 import { describe, expect, it } from "vitest";
 
 /**
@@ -45,7 +47,7 @@ function valoresDeCliente(origem: string, fonte: string): string[] {
     for (const bruto of m[1]!.split(",")) {
       const nome = bruto.trim().split(/\s+as\s+/)[0]!;
       if (!nome || nome.startsWith("type ") || /^[A-Z][a-z0-9]/.test(nome)) continue;
-      achados.push(`${nome} ← ${path.relative(RAIZ, alvo)}`);
+      achados.push(`${nome} ← ${relativoEmBarraNormal(RAIZ, alvo)}`);
     }
   }
   return achados;
@@ -65,7 +67,7 @@ describe("arquivo de servidor do App Router não importa valor de módulo \"use 
     expect(todas.length).toBeGreaterThan(100);
     const violacoes = todas
       .filter((p) => !ehCliente(p))
-      .flatMap((p) => valoresDeCliente(p, readFileSync(p, "utf8")).map((v) => `${path.relative(RAIZ, p)}: ${v}`));
+      .flatMap((p) => valoresDeCliente(p, readFileSync(p, "utf8")).map((v) => `${relativoEmBarraNormal(RAIZ, p)}: ${v}`));
     expect(violacoes).toEqual([]);
   });
 

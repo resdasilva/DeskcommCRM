@@ -51,7 +51,7 @@
  *     explicitamente, com `?? null`.
  */
 import { readdirSync, readFileSync } from "node:fs";
-import { join, relative } from "node:path";
+import { join } from "node:path";
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -76,6 +76,8 @@ vi.mock("@/lib/ai/agents/escopo", () => ({
 
 import { saveAgentDraftAction } from "@/app/app/ai/agents/[id]/_actions";
 import { createAdminClient } from "@/lib/supabase/admin";
+
+import { relativoEmBarraNormal } from "./helpers/caminho";
 
 // ---------------------------------------------------------------------------
 // Dublê: uma tabela de versões DE VERDADE (linhas em memória), porque o defeito
@@ -424,7 +426,7 @@ describe("nenhum chamador de produção decide a publicada pelo palpite", () => 
         p !== "lib/ai/agents/versoes-da-tela.ts" &&
         readFileSync(join(raiz, p), "utf8").includes("escolherVersoesDaTela("),
     )
-    .map((p) => relative(".", p));
+    .map((p) => relativoEmBarraNormal(".", p));
 
   it("a sonda enxerga alguma coisa (controle positivo)", () => {
     // Sem isto, uma varredura que devolvesse zero arquivo — pasta renomeada,
