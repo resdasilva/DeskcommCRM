@@ -80,8 +80,11 @@ describe("imagens-ok só aceita o pulo declarado", () => {
   });
 
   // 4096 subshells: menos de um segundo numa máquina ociosa, e passou de 15 s
-  // numa com carga 90. O teto é para a máquina, não para o script.
-  it("da matriz inteira de desfechos (4096), passa exatamente o que foi declarado", { timeout: 60_000 }, () => {
+  // numa com carga 90. O teto é para a máquina, não para o script. No Windows
+  // cada subshell do bash do Git custa dezenas de ms: medido 99 s sob a suíte
+  // inteira, daí o teto maior lá.
+  const teto = process.platform === "win32" ? 300_000 : 60_000;
+  it("da matriz inteira de desfechos (4096), passa exatamente o que foi declarado", { timeout: teto }, () => {
     const passam = combinacoesAceitas();
     expect(passam.sort()).toEqual(
       [
