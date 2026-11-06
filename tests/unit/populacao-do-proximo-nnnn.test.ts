@@ -40,6 +40,8 @@ import os from "node:os";
 import path from "node:path";
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { pathMinimo } from "./helpers/caminho";
+import { scriptEmArquivo } from "./helpers/script-bash";
 
 const RAIZ = path.resolve(__dirname, "../..");
 const BIBLIOTECA = path.join(RAIZ, "scripts/migration-populacao.sh");
@@ -137,12 +139,12 @@ function bashComBiblioteca(
 cd ${JSON.stringify(dir)}
 source ${JSON.stringify(BIBLIOTECA)}
 ${trecho}`;
-  const r = execFileSync("bash", ["-c", script], {
+  const r = execFileSync("bash", [scriptEmArquivo(script)], {
     encoding: "utf8",
     env: {
       ...process.env,
       // NENHUM gh: a rede é o que o hook de pre-commit não pode fazer.
-      PATH: "/usr/sbin:/usr/bin:/sbin:/bin",
+      PATH: pathMinimo(),
       ...extraEnv,
     },
     stdio: ["ignore", "pipe", "pipe"],
@@ -160,11 +162,11 @@ cd ${JSON.stringify(dir)}
 source ${JSON.stringify(BIBLIOTECA)}
 ${trecho}
 printf '__rc=%s\\n' "$?"`;
-  const out = execFileSync("bash", ["-c", script], {
+  const out = execFileSync("bash", [scriptEmArquivo(script)], {
     encoding: "utf8",
     env: {
       ...process.env,
-      PATH: "/usr/sbin:/usr/bin:/sbin:/bin",
+      PATH: pathMinimo(),
       ...extraEnv,
     },
     stdio: ["ignore", "pipe", "pipe"],
@@ -506,7 +508,7 @@ describe("a ausência da biblioteca degrada declarado, nunca em silêncio", () =
 cd ${JSON.stringify(dir)}
 source /caminho/que/nao/existe/migration-populacao.sh || true
 if declare -F pop_main_do_produto >/dev/null; then echo TEM; else echo "pop_main_do_produto AUSENTE"; fi`;
-    const out = execFileSync("bash", ["-c", script], { encoding: "utf8" });
+    const out = execFileSync("bash", [scriptEmArquivo(script)], { encoding: "utf8" });
     expect(out).toContain("pop_main_do_produto AUSENTE");
   });
 });

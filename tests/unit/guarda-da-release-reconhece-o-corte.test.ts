@@ -4,6 +4,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { pathComNaFrente } from "./helpers/caminho";
+import { scriptEmArquivo } from "./helpers/script-bash";
 
 /**
  * A GUARDA DA RELEASE, MEDIDA CONTRA A FORMA DO CORTE.
@@ -195,14 +197,14 @@ function decisaoPara(sha: string, respostaDaApi: string = RESPOSTA_DO_APP): stri
   writeFileSync(saidaDoGithub, "");
 
   try {
-    const saida = execFileSync("bash", ["-c", script], {
+    const saida = execFileSync("bash", [scriptEmArquivo(script)], {
       cwd: repo,
       encoding: "utf8",
       // `PATH` com o stub na frente é o que impede a pergunta à API de sair
       // para a rede; o resto é o ambiente que o passo do workflow tem.
       env: {
         ...process.env,
-        PATH: `${stub}:${process.env.PATH}`,
+        PATH: pathComNaFrente(stub),
         GH_RESPOSTA: respostaDaApi,
         GITHUB_OUTPUT: saidaDoGithub,
         GITHUB_REPOSITORY: REPO_DE_CIMA,

@@ -4,6 +4,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import { pathComNaFrente } from "./helpers/caminho";
+import { scriptEmArquivo } from "./helpers/script-bash";
 
 /**
  * A GUARDA DA RELEASE CONFERE IDENTIDADE, E NÃO NOME — issue #478.
@@ -239,7 +241,7 @@ function rodarGuarda(sha: string, respostaDaApi: string, opts: { apiFalha?: bool
 
   const env = {
     ...process.env,
-    PATH: `${stub}:${process.env.PATH}`,
+    PATH: pathComNaFrente(stub),
     GH_RESPOSTA: respostaDaApi,
     GH_FALHA: opts.apiFalha ? "1" : "",
     GITHUB_OUTPUT: saidaDoGithub,
@@ -249,7 +251,7 @@ function rodarGuarda(sha: string, respostaDaApi: string, opts: { apiFalha?: bool
   };
 
   try {
-    const saida = execFileSync("bash", ["-c", script], {
+    const saida = execFileSync("bash", [scriptEmArquivo(script)], {
       cwd: repo,
       encoding: "utf8",
       env,
