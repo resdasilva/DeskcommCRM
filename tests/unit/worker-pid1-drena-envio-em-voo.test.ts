@@ -113,7 +113,10 @@ describe("o PID 1 do worker drena o envio em voo (#2823)", () => {
     expect(cmdDoWorker()).toEqual(["node", "--import", "tsx", "workers/agent-worker/main.ts"]);
   });
 
-  it(
+  // Só em Linux: no Windows `kill("SIGTERM")` encerra o filho na hora, sem
+  // entregar o sinal ao `process.on("SIGTERM")` — não há drenagem para medir.
+  // O PID 1 do worker é o de um contêiner Linux; é lá que este ensaio vale.
+  it.skipIf(process.platform === "win32")(
     "SIGTERM com envio em voo: o PID 1 termina a drenagem, sai 0 e o recibo está gravado",
     async () => {
       const ensaio = await sigtermComEnvioEmVoo();

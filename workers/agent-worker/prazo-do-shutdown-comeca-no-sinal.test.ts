@@ -264,7 +264,10 @@ setInterval(() => undefined, 1000);
   });
 }
 
-describe("ensaio: SIGTERM com laço preso (#2823)", () => {
+// Só em Linux: no Windows `kill("SIGTERM")` encerra o filho na hora, sem
+// entregar o sinal ao `process.on("SIGTERM")` — não há desligamento para medir.
+// O worker roda em contêiner Linux; é lá que este ensaio vale.
+describe.skipIf(process.platform === "win32")("ensaio: SIGTERM com laço preso (#2823)", () => {
   it("o conserto fecha o desligamento no prazo, com o tempo MEDIDO de SIGTERM ao exit", async () => {
     const prazoMs = 1_500;
     const ensaio = await ensaioDeSigterm(prazoMs, false);
