@@ -115,7 +115,10 @@ describe("o catálogo de ensaio espelha o vocabulário do host", () => {
         "mod = importlib.util.module_from_spec(spec); spec.loader.exec_module(mod)",
         `mod.validate_manifest(json.loads(pathlib.Path(${JSON.stringify(arquivo)}).read_text()))`,
       ].join("\n");
-      const saida = spawnSync("python3", ["-c", script], { encoding: "utf8" });
+      // No Windows o instalador do Python registra `python`; o `python3` que o
+      // Node acha lá é o atalho da Microsoft Store, que sai 9009 sem rodar nada.
+      const python = process.platform === "win32" ? "python" : "python3";
+      const saida = spawnSync(python, ["-c", script], { encoding: "utf8" });
       // Controle positivo: se o comando nem existir, `status` é diferente de 0 por outro
       // motivo, e um teste que só olhasse "status !== 0" leria isso como recusa legítima.
       expect(saida.error, "python3 indisponível: o caso não mediu nada").toBeUndefined();

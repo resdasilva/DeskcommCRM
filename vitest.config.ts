@@ -23,7 +23,11 @@ export default defineConfig({
     // 15s não mascara travamento (quem trava continua reprovando, dez segundos
     // depois); só para de cronometrar a lentidão da máquina como se fosse
     // asserção. Caso que precisa de mais (abrir processo filho) declara o seu.
-    testTimeout: 15_000,
+    // No Windows o bash do Git cria processo bem mais devagar que o Linux, e
+    // as cercas que executam passos de workflow (dezenas de subshells por
+    // caso) passam dos 15 s sob a suíte inteira. O prazo maior vale só lá; no
+    // Linux e no CI segue 15 s.
+    testTimeout: process.platform === "win32" ? 60_000 : 15_000,
     setupFiles: ["./tests/setup/vitest.setup.ts"],
     globals: true,
     coverage: { provider: "v8", reporter: ["text", "html"] },

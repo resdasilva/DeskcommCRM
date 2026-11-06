@@ -5,6 +5,8 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import { scriptEmArquivo } from "./helpers/script-bash";
+
 /**
  * TODA RELEASE APARECE NA PÁGINA DE CHANGELOG DA LP — E O CI CONFERE.
  *
@@ -111,7 +113,7 @@ function rodarPassoLp(respostas: Record<string, { status: string; html?: string 
     }
     const env = { ...process.env, LP, VERSAO, CENARIO: cenario };
     try {
-      const saida = execFileSync("bash", ["-c", `${falsos}\n${corpo.join("\n")}`], {
+      const saida = execFileSync("bash", [scriptEmArquivo(`${falsos}\n${corpo.join("\n")}`)], {
         encoding: "utf8",
         env,
         stdio: ["ignore", "pipe", "pipe"],

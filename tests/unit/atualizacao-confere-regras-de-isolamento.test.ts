@@ -420,6 +420,13 @@ describe.skipIf(!temAwk)("recriar o que falta: o comando INTEIRO, nunca o nome",
      * do que existe muda de máquina para máquina.
      */
     function localeHostil(esperadas: string[], existentes: string[]): string | undefined {
+      // No Windows o `sort` do Git para Windows ordena por byte em QUALQUER
+      // locale (medido: `a_c`/`ab` sai na mesma ordem em C, en_US.UTF-8 e
+      // pt_BR.UTF-8), então nenhum locale reproduz o defeito ali — e o
+      // `locale -a` lista 766, cada um sondado com um bash novo, o que estoura
+      // o prazo do caso sem achar nada. Lá vale o "sem locale hostil, não
+      // medido" que os casos abaixo já declaram; quem mede é o Linux.
+      if (process.platform === "win32") return undefined;
       let disponiveis: string[] = [];
       try {
         disponiveis = execFileSync("locale", ["-a"], { encoding: "utf8" })

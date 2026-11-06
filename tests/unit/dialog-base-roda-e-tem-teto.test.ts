@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { execSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -103,13 +102,16 @@ describe("o override por diálogo continua valendo (twMerge)", () => {
   it("o repo ainda tem diálogos com max-h próprio (overrides vivos)", () => {
     // Exemplos citados na issue (#2044). Sanidade: o override continua vivo,
     // então o twMerge do `cn` é o que garante que eles não brigam com a base.
+    // A mesma busca do `grep -rlE ... --include="*.tsx"` de antes, feita no
+    // Node: pelo `execSync` o comando ia ao cmd.exe no Windows, que não tem
+    // `|| true` e parte o caminho com espaço.
     const componentes = path.resolve(__dirname, "../../components");
-    const saida: string = execSync(
-      `grep -rlE "max-h-\\[8[5-9]dvh\\]|max-h-\\[9[0-9]dvh\\]" ${componentes} --include="*.tsx" || true`,
-      { encoding: "utf8" },
-    );
-    expect(saida.trim()).not.toBe("");
-    expect(saida.trim().split("\n").length).toBeGreaterThanOrEqual(1);
+    const OVERRIDE = /max-h-\[8[5-9]dvh\]|max-h-\[9[0-9]dvh\]/;
+    const comOverride = fs
+      .readdirSync(componentes, { recursive: true, encoding: "utf8" })
+      .filter((rel) => rel.endsWith(".tsx"))
+      .filter((rel) => OVERRIDE.test(fs.readFileSync(path.join(componentes, rel), "utf8")));
+    expect(comOverride.length).toBeGreaterThanOrEqual(1);
   });
 });
 
