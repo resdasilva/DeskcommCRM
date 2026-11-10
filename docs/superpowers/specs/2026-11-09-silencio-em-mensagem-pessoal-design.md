@@ -1,7 +1,11 @@
 # Silêncio do turno quando a mensagem é pessoal
 
 > Spec de design. Medido em `origin/issue-10-transferencia-silenciosa-pessoal` = `a5bf2dd0a` (09/11/2026).
-> Troca o comportamento do PR 11 do fork (`resdasilva/DeskcommCRM`) antes de ele ser mesclado.
+> Substitui o PR 11 do fork (`resdasilva/DeskcommCRM`), que é fechado sem mesclar.
+> Base de execução: a `main` do fork atualizada com o original. Em 09/11/2026 o fork estava 2.762
+> commits atrás (v1.88 contra v1.104). A entrega nasce numa branch nova a partir da `main` atualizada.
+> As âncoras de código foram conferidas também em `upstream/main` = `95f3103d1`, que não tem nada
+> para mensagem pessoal.
 > Destino (DoD 18): **núcleo**. É um modo do turno do agente, que é núcleo; com a chave desligada nada muda.
 > Onde sobe: só no fork. Push e PR em `origin`; nada vai para o `upstream`.
 
@@ -81,7 +85,8 @@ O que ela faz, nesta ordem:
    pedido. Nada é gravado.
 2. **Já falou.** Com `seq > 0`, ou com envio em voo no mesmo passo, recusa com ensino: a mensagem já
    saiu, encerre o turno. Não há silêncio a registrar e nenhum aviso nasce. A decisão continua na
-   função pura que o PR 11 criou, renomeada `decidirSilencioDoTurno`, com os mesmos quatro desfechos.
+   função pura que o PR 11 criou, renomeada `decidirSilencioDoTurno`, com três desfechos (`silencio`,
+   `ja_falou`, `em_voo`). O `normal` some: a ferramenta só existe com a chave ligada.
 3. **Cala.** Reserva o silêncio na trava que o PR 11 criou (`criarTravaDoSilencio`,
    `cercarEnviosPelaTravaDoSilencio`): `send_message` e `send_template` do mesmo passo são recusados.
    Para o "digitando…". Marca `calouPorMensagemPessoal = true` no turno. Abre o aviso da Central (§3.5).
@@ -91,8 +96,10 @@ O que ela faz, nesta ordem:
 O que ela nunca faz: gravar `force_human`, `bot_silenced_until` ou `is_blocked`; cancelar cron;
 inserir em `passagens_de_atendimento`; mandar aviso no WhatsApp de ninguém.
 
-`por_que` vai para o traço do turno (`traco-do-turno.ts`), onde só lê quem enxerga a conversa. Não
-vai para a Central (§3.5).
+`por_que` não é gravado nesta entrega. O traço do turno guarda o nome e o desfecho de cada
+ferramenta, não os argumentos (`traco-do-turno.ts`), e log não é lugar de conteúdo de conversa. O
+campo obriga o modelo a declarar um motivo antes de calar, e o traço mostra que `stay_silent` foi
+chamada. O registro durável do motivo fica para a entrega 2, em `jev_observacoes`.
 
 ### 3.3 O bloco no prompt
 
@@ -131,8 +138,10 @@ nem aviso de escalação, nem follow-up agendado pelo turno. É critério de ace
 - `agent_inbox_items.kind = 'silencio_mensagem_pessoal'`, severidade informativa, com referência à
   conversa. O nome entra no CHECK do banco e em `InboxKind` (`lib/agent-engine/db/repository.ts`); o
   teste `vocabulario-banco-x-typescript` exige os dois.
-- Título: "O assistente não respondeu: a mensagem parece pessoal". Corpo fixo: "Se for cliente,
-  peça a resposta. Se for pessoal, marque o contato e o assistente não entra mais nessa conversa."
+- Título: "O assistente não respondeu: a mensagem parece pessoal". Sem corpo. A instrução vem como
+  orientação do tipo (`POLITICAS_DE_AVISO`, `lib/ai/inbox-destino.ts`), traduzida na tela: "Se for
+  cliente, peça a resposta. Se for pessoal, marque o contato e o assistente não entra mais nessa
+  conversa."
 - O aviso não repete o que o contato escreveu nem o `por_que` do modelo. A Central é lida pela
   organização inteira e a conversa só por quem a enxerga, a mesma regra de `avisarAEquipe`
   (`lib/ai/decisao/pedidos.ts`).
@@ -148,12 +157,14 @@ Central existe aqui para o erro: cliente de verdade que a IA calou.
 
 ### 3.6 "É cliente, responder"
 
-`POST /api/v1/contacts/[id]/client-confirmed`, corpo `{ conversation_id }` validado por Zod. Papel
-mínimo: atendente (`requireRole("agent")`), a mesma régua de devolver o atendimento à IA. A rota
-declara `requireSupportWrite(` antes do efeito e resolve a organização da sessão, nunca do corpo; o
-contato e a conversa são conferidos contra ela.
+`POST /api/v1/conversations/[id]/client-confirmed`, sem corpo. O aviso da Central aponta para a
+conversa, então a rota parte dela e acha o contato no servidor. Papel mínimo: atendente
+(`requireRole("agent")`), a mesma régua de devolver o atendimento à IA. A rota declara
+`requireSupportWrite(` antes do efeito e resolve a organização da sessão; a conversa é conferida
+contra ela.
 
-1. Grava `contacts.cliente_confirmado_em = now()` e `cliente_confirmado_por = <usuário>`.
+1. Grava `contacts.cliente_confirmado_em = now()`. Quem confirmou fica na auditoria, sem coluna
+   própria, como a spec 21 fez com a marca de pessoal. Contato já marcado como pessoal recusa com 409.
 2. Fecha o aviso aberto da conversa.
 3. Se a última mensagem da conversa é do contato, pede o turno de novo pelo emissor de
    `ai_agent.dispatch_requested` que `lib/channels/pos-entrada.ts` usa. Os gates de elegibilidade
@@ -174,8 +185,10 @@ limpa a marca.
 Usa `app/api/v1/contacts/[id]/personal/route.ts`, que já existe (spec 21), com as regras dela:
 só gerente e dono marcam; marcar tira o contato da operação inteira. Duas adições:
 
-- Marcar como pessoal zera `cliente_confirmado_em` e `cliente_confirmado_por`.
-- Marcar como pessoal fecha o aviso aberto do §3.5.
+- Marcar como pessoal zera `cliente_confirmado_em`, por gatilho no banco, para valer em todo caminho
+  que marca (rota, lote, MCP).
+- O aviso aberto fecha sem código novo: a rota já encerra as conversas do contato, e conversa
+  encerrada fecha o aviso (§3.5).
 
 Atendente sem papel de gerente vê o botão desabilitado com o motivo, como nas outras ações de
 gerente.
@@ -188,24 +201,26 @@ teste não pede a correção do turno mudo nesse caso.
 
 ## 4. Banco
 
-A migration `20261101130000_0769_passagem_silenciosa_por_mensagem_pessoal.sql` ainda não saiu da
-branch do PR 11. Ela é reescrita no lugar, com o mesmo número e nome novo
-(`..._0769_silencio_em_mensagem_pessoal.sql`), e não ganha migration de correção:
+A migration do PR 11 (`..._0769_passagem_silenciosa_por_mensagem_pessoal.sql`) nunca saiu da branch
+dele e não é levada adiante. A entrega cria uma migration nova,
+`..._silencio_em_mensagem_pessoal.sql`, com o próximo número livre depois de atualizar o fork (o
+original já estava em 0809 em 09/11/2026):
 
 1. `ai_agent_versions.silencio_em_mensagem_pessoal boolean not null default false`, com comentário.
 2. `fn_ai_agent_version_content_immutable` com a coluna nova no lugar de `handoff_silencioso_pessoal`.
-3. `contacts.cliente_confirmado_em timestamptz null` e `cliente_confirmado_por uuid null`.
+3. `contacts.cliente_confirmado_em timestamptz null`, e o gatilho que a zera quando o contato vira
+   pessoal.
 4. `'silencio_mensagem_pessoal'` no CHECK de `agent_inbox_items.kind`.
 5. O laço que fecha o aviso (§3.5).
 6. Os CHECKs de `passagens_de_atendimento` deixam de ser tocados: ficam como em `origin/main`.
 
 Tripla da casa: migration com linha `-- manifest:`, apêndice idempotente em `supabase/baseline.sql`,
 tipos em `lib/database.types.ts`. Se o laço do item 5 for função em `public`, ela termina com
-`revoke execute ... from public, anon`. O número 0769 é conferido de novo com
+`revoke execute ... from public, anon`. O número é conferido com
 `pnpm checar:colisao-de-migration` antes do PR.
 
-Reescrever no lugar só vale porque a 0769 nunca saiu da branch. A regra "nunca edite migration já
-aplicada" protege quem já instalou, e ninguém instalou esta (§9).
+O fork numera na mesma sequência do original, então o número escolhido pode ser tomado lá a qualquer
+momento. A cada atualização do fork ele é conferido de novo, e renumerado se colidir.
 
 ### Banco de teste local
 
@@ -268,7 +283,8 @@ mais do que isso.
 - `tests/unit/correcao-do-turno-mudo-so-escala-com-falha.test.ts`: calado de propósito não abre caso.
 - Rota `client-confirmed`: papel, marca, fechamento do aviso, repedido só quando a última mensagem é
   do contato, auditoria.
-- Rota `personal`: zera a marca de cliente confirmado e fecha o aviso.
+- Invariante de banco (`tests/invariants/`): um aviso aberto por conversa; conversa encerrada e
+  mensagem de saída fecham o aviso; marcar como pessoal zera a marca de cliente confirmado.
 - Invariantes que a mudança toca e precisam continuar verdes:
   `trigger-imutavel-cobre-todas-as-colunas-de-conteudo`, `vocabulario-banco-x-typescript`,
   `i18n-espanhol-cobre-a-tela` (textos novos em `en.json` e no espanhol),
@@ -305,4 +321,6 @@ modelo do agente medida no §6.
 
 - A 0769 antiga só rodou no banco de teste local. Se rodou em outro banco, a reescrita do §4 não
   serve para ele e a troca precisa de migration nova.
-- O PR 11 ainda não foi mesclado em `origin/main`, e continua assim até esta entrega entrar nele.
+- O PR 11 não foi mesclado em `origin/main`, e é fechado sem mesclar quando esta entrega abrir o PR dela.
+- A `main` do fork não tem commits próprios (medido em 09/11/2026: zero), então atualizar o fork é
+  avanço direto, sem merge.
