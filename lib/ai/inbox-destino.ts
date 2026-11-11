@@ -207,6 +207,11 @@ export const POLITICAS_DE_AVISO = {
   // `message_send_stuck` cala o aviso de automação aberto na mesma janela. A porta
   // passa pela MESMA conferência dos outros kinds: RLS de `conversations` no
   // client da request, papel `agent` da entrada `conversation`.
+  silencio_mensagem_pessoal: {
+    refs: ["conversation"],
+    orientacao:
+      "Se for cliente, peça a resposta. Se for pessoal, marque o contato e o assistente não entra mais nessa conversa.",
+  },
   other: { refs: ["agenda_reminder_sender", "lead", "conversation", "channel_session", "appointment", "ai_agent", "ai_provider_credential", "agent_case"], orientacao: "Confira a situação descrita neste aviso com a pessoa responsável." },
 } satisfies Record<InboxKind, Politica>;
 

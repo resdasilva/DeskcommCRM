@@ -138,6 +138,10 @@ export type InboxKind =
   // sem resposta e a Central vazia. UM item por incidente (índice único
   // parcial), fechado sozinho quando o login volta pela tela de Credenciais.
   | 'assinatura_desconectada'
+  // (migration 9343, issue #10) O agente calou de propósito porque a mensagem
+  // parece pessoal. Nasce em `silencio-pessoal.ts`; fecha sozinho quando sai
+  // qualquer mensagem na conversa ou quando ela é encerrada.
+  | 'silencio_mensagem_pessoal'
   | 'other';
 
 export interface InboxItemRow {
