@@ -2905,7 +2905,7 @@ git commit -m "🧪 [test] agente: prova do silêncio do turno no turno real, co
 **Files:**
 - Create: `.changes/ia-nao-responde-mensagem-pessoal.md`
 - Modify: `docs/architecture/central-avisos.architecture.json`
-- Create (evidência): `evidence/issue-10-qa-v4/tela-*.png`
+- Create (evidência): `evidence/issue-10-qa-v4/ (capturas tela-N)`
 
 - [ ] **Step 1: Fragmento de mudança**
 
@@ -2972,11 +2972,11 @@ Esperado: typecheck e lint zerados; `exit=0`; nenhum `FAIL`; colisão de migrati
 
 Ambiente fresco estilo VPS (`supabase/baseline.sql` + `scripts/bootstrap-owner.ts`, `next build` + `next start`), Playwright dirigindo o browser:
 
-1. Entrar como dono, abrir um agente, ligar "Não responder mensagem pessoal", salvar e publicar. Screenshot `evidence/issue-10-qa-v4/tela-1-chave.png`.
+1. Entrar como dono, abrir um agente, ligar "Não responder mensagem pessoal", salvar e publicar. Screenshot `tela-1-chave` (PNG em `evidence/issue-10-qa-v4/`).
 2. Criar um rascunho novo a partir da versão publicada e conferir que a chave continua ligada.
-3. Simular a mensagem da mãe (`scripts/e2e-followup-journey-helpers.ts simulate-inbound` e o evento `ai_agent.dispatch_requested`; o contato precisa de `ai_authorized_at`). Abrir a Central: o aviso aparece com os dois botões. Screenshot `tela-2-aviso.png`.
-4. Clicar "É cliente, responder": a frase de confirmação aparece, o aviso sai dos abertos, e a conversa recebe a resposta do assistente. Screenshot `tela-3-cliente.png`.
-5. Repetir o passo 3 com outro contato e clicar "Marcar como contato pessoal" como dono: o aviso fecha e a conversa sai da Inbox. Screenshot `tela-4-pessoal.png`.
+3. Simular a mensagem da mãe (`scripts/e2e-followup-journey-helpers.ts simulate-inbound` e o evento `ai_agent.dispatch_requested`; o contato precisa de `ai_authorized_at`). Abrir a Central: o aviso aparece com os dois botões. Screenshot `tela-2-aviso`.
+4. Clicar "É cliente, responder": a frase de confirmação aparece, o aviso sai dos abertos, e a conversa recebe a resposta do assistente. Screenshot `tela-3-cliente`.
+5. Repetir o passo 3 com outro contato e clicar "Marcar como contato pessoal" como dono: o aviso fecha e a conversa sai da Inbox. Screenshot `tela-4-pessoal`.
 6. Entrar como atendente: o botão "Marcar como contato pessoal" está desabilitado, com a frase "Só gerente ou dono marca um contato como pessoal."
 
 Registre os casos em `docs/testing/user-journey-map.md`, na jornada do agente de IA.
@@ -2995,7 +2995,7 @@ Substitui o PR 11 (passagem silenciosa), que pode ser fechado sem mesclar: aqui 
 - Spec: `docs/superpowers/specs/2026-11-09-silencio-em-mensagem-pessoal-design.md`
 - Destino (DoD 18): núcleo. Chave desligada por padrão; desligada, nada muda.
 - Prova com o modelo real: `evidence/issue-10-qa-v4/placar.txt`
-- Prova pela tela: `evidence/issue-10-qa-v4/tela-*.png`
+- Prova pela tela: `evidence/issue-10-qa-v4/ (capturas tela-N)`
 
 O que muda: a ferramenta `stay_silent` no lugar de `mensagem_pessoal` na passagem; nada de `force_human`; aviso próprio na Central com "É cliente, responder" e "Marcar como contato pessoal"; chave na tela do agente.
 

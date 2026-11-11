@@ -15,14 +15,19 @@ import { useT } from "@/hooks/i18n/useT";
  * contato da operação (spec 21), e só gerente e dono podem.
  */
 export function AcoesDoSilencio({ item }: { item: AgentInboxItem }) {
+  const acoes = item.silencio_pessoal ?? null;
+  // Os ganchos moram no filho: aviso de outro tipo não monta nada, e a lista
+  // segue funcionando onde não há QueryClient (os testes da Central, por exemplo).
+  if (item.kind !== "silencio_mensagem_pessoal" || !acoes) return null;
+  return <Botoes acoes={acoes} />;
+}
+
+function Botoes({ acoes }: { acoes: NonNullable<AgentInboxItem["silencio_pessoal"]> }) {
   const t = useT();
   const qc = useQueryClient();
-  const acoes = item.silencio_pessoal ?? null;
   const confirmar = useConfirmClient();
-  const marcar = useMarkPersonalContact(acoes?.contact_id ?? "");
+  const marcar = useMarkPersonalContact(acoes.contact_id);
   const [feito, setFeito] = useState<string | null>(null);
-
-  if (item.kind !== "silencio_mensagem_pessoal" || !acoes) return null;
   const ocupado = confirmar.isPending || marcar.isPending;
 
   if (feito !== null) {
@@ -38,7 +43,9 @@ export function AcoesDoSilencio({ item }: { item: AgentInboxItem }) {
       <Button
         size="sm"
         disabled={ocupado}
-        onClick={() => confirmar.mutate(acoes.conversation_id, { onSuccess: (d) => setFeito(d.message) })}
+        onClick={() =>
+          confirmar.mutate(acoes.conversation_id, { onSuccess: (d) => setFeito(d.message) })
+        }
       >
         {t("É cliente, responder")}
       </Button>
@@ -49,7 +56,9 @@ export function AcoesDoSilencio({ item }: { item: AgentInboxItem }) {
         onClick={() =>
           marcar.mutate(undefined, {
             onSuccess: () => {
-              setFeito(t("Contato marcado como pessoal. O assistente não entra mais nessa conversa."));
+              setFeito(
+                t("Contato marcado como pessoal. O assistente não entra mais nessa conversa."),
+              );
               void qc.invalidateQueries({ queryKey: ["agent-inbox"] });
             },
           })
