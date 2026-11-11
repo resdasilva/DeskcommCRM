@@ -1,33 +1,26 @@
 /**
- * PROVA NO TURNO REAL DE WHATSAPP da passagem silenciosa (issue #10, AC de
- * 19 de 20).
+ * PROVA NO TURNO REAL DE WHATSAPP do silêncio do turno em mensagem pessoal
+ * (issue #10; spec docs/superpowers/specs/2026-11-09-silencio-em-mensagem-pessoal-design.md §6).
  *
- * Por que não basta a prova da tela "Testar agente"
- * (`prova-passagem-silenciosa-modelo-real.ts`): o dono mediu 0 de 5 no turno de
- * WhatsApp de verdade, com o histórico da conversa, e a prévia mediu 14 de 15
- * num caminho diferente — sem histórico, em modo prévia, com o bloco "MODO
- * PRÉVIA" no prompt. Este script roda o MESMO handler que o worker registra
- * para `inbound_turn` (`createInboundTurnHandler`, dentro de `withServiceJob`,
- * com um job `running` de verdade em `job_queue`), na conversa real do dono,
- * com o histórico que ela já tem.
+ * Roda o MESMO handler que o worker registra para `inbound_turn`
+ * (`createInboundTurnHandler`, dentro de `withServiceJob`, com um job `running`
+ * de verdade em `job_queue`), na conversa real, com o histórico que ela já tem.
+ * A tela "Testar agente" não serve de prova: ela não tem histórico, e foi com
+ * histórico que o dono mediu 0 de 5 no PR 11.
  *
  * O que é trocado, e só isto:
  *   - o TRANSPORTE: `deps.channel` é um adapter que ANOTA cada envio em vez de
  *     entregar ao WAHA. Todo o resto da cadeia (prompt, histórico, ferramentas,
- *     gates, a passagem gravada no banco) é o caminho real. Entregar ao WAHA
- *     mandaria 20 mensagens ao número de teste, e o que se mede é o que o
- *     agente TENTOU enviar, que o adapter vê inteiro;
+ *     gates, o aviso gravado na Central) é o caminho real;
  *   - `sleep` vira no-op (o atraso humano e o throttle só esperam).
  *
- * Para cada tentativa a conversa volta ao estado de antes, e a mensagem
- * inserida sai: as 20 tentativas veem o MESMO histórico, que é o do teste do
- * dono. Os eventos que a tentativa emitiu (o aviso da Central inclusive) são
- * contados como evidência e marcados `done`, para que nenhum worker os entregue
- * depois à equipe 20 vezes.
+ * `FRASE` aceita uma lista: os passos rodam em sequência na MESMA tentativa, sem
+ * restaurar a conversa no meio. É assim que se mede "volta sozinha": a mãe
+ * escreve (silêncio) e depois pergunta o preço (resposta). Entre tentativas a
+ * conversa volta ao estado de antes e as mensagens inseridas saem.
  *
  * Uso (no worktree, com o ambiente do Supabase LOCAL no processo):
- *   ENV_FILE=<.env.local do ambiente local> CONVERSAS=<uuid>[,<uuid>] N=10 \
- *     FRASE=mae|mae-longa|comercial pnpm exec tsx scripts/prova-passagem-silenciosa-turno-real.ts
+ *   ENV_FILE=<.env.local do ambiente local> CONVERSAS=<uuid>[,<uuid>] N=10  *     FRASE=<nome>[,<nome>] [CLIENTE_CONFIRMADO=1]  *     pnpm exec tsx scripts/prova-silencio-pessoal-turno-real.ts
  */
 import { randomUUID } from "node:crypto";
 
@@ -44,9 +37,12 @@ const FRASES: Record<string, string> = {
   "mae-longa":
     "Oi filho, é a mãe! Você vem almoçar aqui no domingo? Vou fazer aquela lasanha. Beijo",
   comercial: "Oi, quero saber o preço da consulta",
+  preco: "E quanto custa o corte?",
+  misturada: "E aí, beleza? Quanto tá o corte?",
+  parar: "Mãe aqui. Para de me mandar mensagem",
 };
 
-const WORKER = "prova-issue-10";
+const WORKER = "prova-silencio-pessoal";
 
 async function main(): Promise<void> {
   const { createInboundTurnHandler } = await import("@/lib/agent-engine/agent/inbound-turn");
@@ -56,9 +52,9 @@ async function main(): Promise<void> {
     await import("@/lib/atendimento/fronteira-server");
   const pool = getRequestPool();
 
-  const fraseNome = process.env.FRASE ?? "mae";
-  const texto = FRASES[fraseNome];
-  if (!texto) throw new Error(`frase desconhecida: ${fraseNome}`);
+  const passos = (process.env.FRASE ?? "mae").split(",").filter(Boolean);
+  for (const nome of passos) if (!FRASES[nome]) throw new Error(`frase desconhecida: ${nome}`);
+  const clienteConfirmado = process.env.CLIENTE_CONFIRMADO === "1";
   const conversas = (process.env.CONVERSAS ?? "").split(",").filter(Boolean);
   if (conversas.length === 0) throw new Error("CONVERSAS vazio");
   const n = Number(process.env.N ?? 10);
@@ -67,7 +63,8 @@ async function main(): Promise<void> {
     const { rows: cr } = await pool.query(
       `select c.organization_id, c.contact_id, c.channel_session_id, c.status, c.bot_silenced_until,
               c.last_handoff_at, c.last_handoff_reason, c.active_ai_agent_id, c.active_intent,
-              c.active_agent_set_at, c.metadata, k.force_human, k.ai_authorized_at, k.ai_authorized_reason
+              c.active_agent_set_at, c.metadata, k.force_human, k.ai_authorized_at, k.ai_authorized_reason,
+              k.cliente_confirmado_em
          from conversations c join contacts k on k.id = c.contact_id
         where c.id = $1`,
       [conversationId],
@@ -82,9 +79,21 @@ async function main(): Promise<void> {
 
     const restaurar = async (): Promise<void> => {
       await pool.query(
-        `update contacts set force_human = $2, ai_authorized_at = $3, ai_authorized_reason = $4
+        `update contacts set force_human = $2, ai_authorized_at = $3, ai_authorized_reason = $4,
+                cliente_confirmado_em = $5
           where id = $1`,
-        [antes.contact_id, antes.force_human, antes.ai_authorized_at, antes.ai_authorized_reason],
+        [
+          antes.contact_id,
+          antes.force_human,
+          antes.ai_authorized_at,
+          antes.ai_authorized_reason,
+          antes.cliente_confirmado_em,
+        ],
+      );
+      await pool.query(
+        `delete from agent_inbox_items
+          where organization_id = $1 and kind = 'silencio_mensagem_pessoal' and ref_id = $2`,
+        [antes.organization_id, conversationId],
       );
       await pool.query(
         `update conversations set status = $2, bot_silenced_until = $3, last_handoff_at = $4,
@@ -116,143 +125,170 @@ async function main(): Promise<void> {
           [antes.contact_id],
         );
       }
-      const t0 = (await pool.query<{ t: string }>(`select now()::text as t`)).rows[0]!.t;
-      const messageId = randomUUID();
-      // A fronteira do atendimento, como o drain grava no payload do job de verdade.
-      const atual = await readCurrentServiceBoundary(pool, antes.organization_id, conversationId);
-      if (!atual) throw new Error("conversa sem fronteira de atendimento");
-      const fronteira = {
-        organization_id: atual.organization_id,
-        contact_id: atual.contact_id,
-        conversation_id: atual.conversation_id,
-        service_revision: atual.service_revision,
-        demanda_id: atual.demanda_id,
-        demanda_revision: atual.demanda_revision,
-      };
-      // Sem gatilhos: a mensagem não pode acordar o drain de um worker de verdade.
-      const cli = await pool.connect();
-      try {
-        await cli.query("begin");
-        await cli.query(`set local session_replication_role = replica`);
-        await cli.query(
-          `insert into messages (id, organization_id, conversation_id, channel_session_id, contact_id,
+      if (clienteConfirmado) {
+        await pool.query(`update contacts set cliente_confirmado_em = now() where id = $1`, [
+          antes.contact_id,
+        ]);
+      }
+      const inseridas: string[] = [];
+      for (const [indice, fraseNome] of passos.entries()) {
+        const texto = FRASES[fraseNome]!;
+        const t0 = (await pool.query<{ t: string }>(`select now()::text as t`)).rows[0]!.t;
+        const messageId = randomUUID();
+        // A fronteira do atendimento, como o drain grava no payload do job de verdade.
+        const atual = await readCurrentServiceBoundary(pool, antes.organization_id, conversationId);
+        if (!atual) throw new Error("conversa sem fronteira de atendimento");
+        const fronteira = {
+          organization_id: atual.organization_id,
+          contact_id: atual.contact_id,
+          conversation_id: atual.conversation_id,
+          service_revision: atual.service_revision,
+          demanda_id: atual.demanda_id,
+          demanda_revision: atual.demanda_revision,
+        };
+        // Sem gatilhos: a mensagem não pode acordar o drain de um worker de verdade.
+        const cli = await pool.connect();
+        try {
+          await cli.query("begin");
+          await cli.query(`set local session_replication_role = replica`);
+          await cli.query(
+            `insert into messages (id, organization_id, conversation_id, channel_session_id, contact_id,
                                  type, direction, status, body, sent_via, service_revision,
                                  demanda_id, demanda_revision)
            values ($1, $2, $3, $4, $5, 'text', 'inbound', 'received', $6, 'crm', $7, $8, $9)`,
-          [
-            messageId,
-            antes.organization_id,
-            conversationId,
-            antes.channel_session_id,
-            antes.contact_id,
-            texto,
-            fronteira.service_revision,
-            fronteira.demanda_id,
-            fronteira.demanda_revision,
-          ],
-        );
-        await cli.query("commit");
-      } finally {
-        cli.release();
-      }
-      const { rows: jr } = await pool.query(
-        `insert into job_queue (organization_id, contact_id, kind, payload, status, locked_by, locked_at, attempts)
+            [
+              messageId,
+              antes.organization_id,
+              conversationId,
+              antes.channel_session_id,
+              antes.contact_id,
+              texto,
+              fronteira.service_revision,
+              fronteira.demanda_id,
+              fronteira.demanda_revision,
+            ],
+          );
+          await cli.query("commit");
+        } finally {
+          cli.release();
+        }
+        const { rows: jr } = await pool.query(
+          `insert into job_queue (organization_id, contact_id, kind, payload, status, locked_by, locked_at, attempts)
          values ($1, $2, 'inbound_turn', $3, 'running', $4, now(), 1)
          returning *, locked_at::text as claim_acquired_at`,
-        [
-          antes.organization_id,
-          antes.contact_id,
-          {
-            conversation_id: conversationId,
-            contact_id: antes.contact_id,
-            channel_session_id: antes.channel_session_id,
-            inbound_message_id: messageId,
-            crm_event_id: randomUUID(),
-            service_boundary: fronteira,
-          },
-          WORKER,
-        ],
-      );
-      const job = jr[0];
+          [
+            antes.organization_id,
+            antes.contact_id,
+            {
+              conversation_id: conversationId,
+              contact_id: antes.contact_id,
+              channel_session_id: antes.channel_session_id,
+              inbound_message_id: messageId,
+              crm_event_id: randomUUID(),
+              service_boundary: fronteira,
+            },
+            WORKER,
+          ],
+        );
+        const job = jr[0];
 
-      const enviados: string[] = [];
-      const base = requestTurnDeps();
-      const deps = {
-        ...base,
-        sleep: async () => {},
-        channel: () => ({
-          channel: "prova_issue_10",
-          send: async (input: { body: string; jobId: string; seq: number }) => {
-            enviados.push(input.body);
-            return {
-              kind: "sent" as const,
-              idempotencyKey: `${input.jobId}:${input.seq}`,
-              messageId: randomUUID(),
-            };
-          },
-          sessionHealth: async () => ({ healthy: true, status: "WORKING", since: null }),
-          capabilities: () => ({ freeformAnytime: true, serviceWindowHours: null }),
-          costPerMessage: () => ({ perMessageUsdCents: 0, model: "flat" as const }),
-        }),
-      };
-      const ms0 = Date.now();
-      let erro: string | null = null;
-      try {
-        const handler = createInboundTurnHandler(deps as never);
-        await withServiceJob(pool, job, () => handler(job, pool, { workerId: WORKER }));
-      } catch (e) {
-        erro = String(e).slice(0, 300);
-      }
-      await pool.query(`update job_queue set status = 'done', locked_by = null where id = $1`, [
-        job.id,
-      ]);
+        const enviados: string[] = [];
+        const base = requestTurnDeps();
+        const deps = {
+          ...base,
+          sleep: async () => {},
+          channel: () => ({
+            channel: "prova_issue_10",
+            send: async (input: { body: string; jobId: string; seq: number }) => {
+              enviados.push(input.body);
+              return {
+                kind: "sent" as const,
+                idempotencyKey: `${input.jobId}:${input.seq}`,
+                messageId: randomUUID(),
+              };
+            },
+            sessionHealth: async () => ({ healthy: true, status: "WORKING", since: null }),
+            capabilities: () => ({ freeformAnytime: true, serviceWindowHours: null }),
+            costPerMessage: () => ({ perMessageUsdCents: 0, model: "flat" as const }),
+          }),
+        };
+        const ms0 = Date.now();
+        let erro: string | null = null;
+        try {
+          const handler = createInboundTurnHandler(deps as never);
+          await withServiceJob(pool, job, () => handler(job, pool, { workerId: WORKER }));
+        } catch (e) {
+          erro = String(e).slice(0, 300);
+        }
+        await pool.query(`update job_queue set status = 'done', locked_by = null where id = $1`, [
+          job.id,
+        ]);
 
-      const { rows: pass } = await pool.query(
-        `select to_jsonb(p) as p from passagens_de_atendimento p
-          where p.conversation_id = $1 and p.criado_em >= $2::timestamptz`,
-        [conversationId, t0],
-      );
-      const { rows: tr } = await pool.query(
-        `select status, model, ferramentas, abort_reason, error_message from agent_turn_traces
+        const { rows: pass } = await pool.query(
+          `select motivo_codigo from passagens_de_atendimento
+          where conversation_id = $1 and criado_em >= $2::timestamptz`,
+          [conversationId, t0],
+        );
+        const { rows: tr } = await pool.query(
+          `select status, model, ferramentas, abort_reason, error_message from agent_turn_traces
           where job_id = $1`,
-        [job.id],
-      );
-      const { rows: ev } = await pool.query(
-        `update event_log set status = 'done', last_error = 'prova issue #10: não entregue de propósito'
+          [job.id],
+        );
+        const { rows: av } = await pool.query(
+          `select count(*)::int as n from agent_inbox_items
+          where organization_id = $1 and kind = 'silencio_mensagem_pessoal' and ref_id = $2 and status = 'open'`,
+          [antes.organization_id, conversationId],
+        );
+        const { rows: ag } = await pool.query(
+          `select
+           (select count(*)::int from job_queue
+             where contact_id = $1 and id <> $2 and created_at >= $3::timestamptz) as jobs,
+           (select count(*)::int from cron_jobs
+             where contact_id = $1 and enabled and created_at >= $3::timestamptz) as crons`,
+          [antes.contact_id, job.id, t0],
+        );
+        const { rows: ev } = await pool.query(
+          `update event_log set status = 'done', last_error = 'prova issue #10: não entregue de propósito'
           where organization_id = $1 and created_at >= $2::timestamptz and status = 'pending'
           returning event_type`,
-        [antes.organization_id, t0],
-      );
-      const { rows: fh } = await pool.query(`select force_human from contacts where id = $1`, [
-        antes.contact_id,
-      ]);
+          [antes.organization_id, t0],
+        );
+        const { rows: depois } = await pool.query(
+          `select k.force_human, c.bot_silenced_until from contacts k
+           join conversations c on c.contact_id = k.id where c.id = $1`,
+          [conversationId],
+        );
+        const ferramentas = (tr[0]?.ferramentas ?? []) as Array<{ nome: string; estado: string }>;
 
-      const passagem = pass.map((r) => r.p as Record<string, unknown>);
-      console.info(
-        JSON.stringify({
-          frase: fraseNome,
-          conversa: conversationId,
-          tentativa: i,
-          ms: Date.now() - ms0,
-          mensagens_ao_contato: enviados,
-          passagem: passagem.map((p) => ({
-            motivo: p.motivo_codigo,
-            cliente_avisado: p.cliente_avisado,
-            aviso: p.aviso_motivo_codigo,
-          })),
-          force_human_depois: fh[0]?.force_human,
-          traco: tr[0] ?? null,
-          eventos: ev.map((e) => e.event_type),
-          erro,
-        }),
-      );
+        console.info(
+          JSON.stringify({
+            frase: fraseNome,
+            conversa: conversationId,
+            tentativa: i,
+            passo: indice + 1,
+            ms: Date.now() - ms0,
+            mensagens_ao_contato: enviados,
+            stay_silent: ferramentas.filter((f) => f.nome === "stay_silent").map((f) => f.estado),
+            stay_silent_chamada: ferramentas.some((f) => f.nome === "stay_silent"),
+            aviso_aberto: av[0]?.n ?? 0,
+            force_human_depois: depois[0]?.force_human,
+            bot_silenciado_depois: depois[0]?.bot_silenced_until !== null,
+            passagens: pass.map((p) => p.motivo_codigo),
+            agendados: ag[0],
+            traco: tr[0] ?? null,
+            eventos: ev.map((e) => e.event_type),
+            erro,
+          }),
+        );
+        inseridas.push(messageId);
+      }
 
-      // A mensagem inserida sai: a próxima tentativa vê o mesmo histórico.
+      // As mensagens inseridas saem: a próxima tentativa vê o mesmo histórico.
       const c2 = await pool.connect();
       try {
         await c2.query("begin");
         await c2.query(`set local session_replication_role = replica`);
-        await c2.query(`delete from messages where id = $1`, [messageId]);
+        await c2.query(`delete from messages where id = any($1::uuid[])`, [inseridas]);
         await c2.query("commit");
       } finally {
         c2.release();
