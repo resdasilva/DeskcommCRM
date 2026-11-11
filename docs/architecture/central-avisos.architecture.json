@@ -140,6 +140,20 @@
       "col": 2,
       "type": "ui",
       "label": "Configurações › Notificações: o que aparece com o celular bloqueado (só admin muda)"
+    },
+    {
+      "id": "silencio_pessoal",
+      "lane": "app",
+      "col": 0,
+      "type": "service",
+      "label": "stay_silent (silencio-pessoal.ts): mensagem pessoal cala só o turno e abre o aviso silencio_mensagem_pessoal (9343)"
+    },
+    {
+      "id": "cliente_confirmado",
+      "lane": "app",
+      "col": 6,
+      "type": "service",
+      "label": "POST conversations/[id]/client-confirmed: marca o contato, fecha o aviso e repede o turno + auditoria"
     }
   ],
   "edges": [
@@ -242,6 +256,26 @@
       "from": "config_tela_bloqueada",
       "to": "funil",
       "label": "settings.notificacoes.conteudo_na_tela_bloqueada"
+    },
+    {
+      "from": "silencio_pessoal",
+      "to": "produtores",
+      "label": "um aviso aberto por conversa, sem o texto do contato"
+    },
+    {
+      "from": "ui",
+      "to": "cliente_confirmado",
+      "label": "«É cliente, responder»"
+    },
+    {
+      "from": "cliente_confirmado",
+      "to": "silencio_pessoal",
+      "label": "contato confirmado: o turno não oferece mais o silêncio"
+    },
+    {
+      "from": "cliente_confirmado",
+      "to": "central",
+      "label": "aviso resolvido; reconsultar"
     }
   ]
 }
