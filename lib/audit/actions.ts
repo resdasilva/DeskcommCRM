@@ -1280,6 +1280,10 @@ export const AUDIT_ACTIONS = [
   // titular), não decisão operacional de esconder da operação.
   "contact.marked_personal",
   "contact.unmarked_personal",
+  // Silêncio do turno em mensagem pessoal (issue #10): alguém olhou o aviso da
+  // Central e disse "é cliente". É a única prova de QUEM confirmou — a marca
+  // `contacts.cliente_confirmado_em` guarda só o quando.
+  "contact.client_confirmed",
 
   // A trava de número novo (go-live) solta na atualização do número que o
   // controle de ritmo já considera formado (migration 0793, PR #2327, doc 109).
