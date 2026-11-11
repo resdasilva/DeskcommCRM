@@ -298,6 +298,14 @@ import {
 import { diffCheckpoint } from '@/lib/leads/checkpoint-diff';
 import { CORRECAO_DO_TURNO_MUDO, PASSOS_DA_CORRECAO, turnoMudoPedeCorrecao } from './turno-mudo';
 import {
+  applyStaySilent,
+  blocoDoSilencioPessoal,
+  cercarEnviosPelaTravaDoSilencio,
+  criarTravaDoSilencio,
+  silencioPessoalDisponivel,
+  STAY_SILENT_TOOL_DEF,
+} from './silencio-pessoal';
+import {
   desfechoSemCandidato,
   previaPedeCorrecaoDoTurnoMudo,
   tetoDePassosAtingido,
@@ -3180,6 +3188,13 @@ async function executarTurnoDoAgente(
     // sumiu) — ambos re-tentam pela fila e morrem em 'dead' se persistirem.
     throw new Error(`abertura do turno falhou em get_lead_context (${openingContext.error.code})`);
   }
+  // Issue #10: o silêncio por mensagem pessoal depende da chave da versão E do
+  // contato (quem alguém confirmou como cliente não é calado). A mesma régua
+  // decide o bloco do prompt, a ferramenta e a trava dos envios. O bloco entra
+  // aqui, antes do da voz, que é de propósito o último.
+  const silencioDisponivel = silencioPessoalDisponivel(agentConfig, openingContext.context.contact);
+  const blocoPessoal = blocoDoSilencioPessoal(silencioDisponivel);
+  if (blocoPessoal !== null) blocosResidentes.push(blocoPessoal);
 
   // Voz (Fase 6b do plano de voz): resolvida UMA vez por turno, antes de
   // qualquer `send_message` — a pergunta "o agente fala agora" não muda
@@ -3846,6 +3861,11 @@ async function executarTurnoDoAgente(
   // tente de novo o que a cadeia proíbe — ver `VETOS_IRREVOGAVEIS`.
   let vetoIrrevogavel = false;
   let passouParaAEquipe = false;
+  // Issue #10: `stay_silent` registrou o silêncio deste turno. É razão legítima
+  // de terminar sem mensagem, como a passagem — as duas guardas do turno mudo a leem.
+  let calouPorMensagemPessoal = false;
+  // Envios do modelo em voo x silêncio no mesmo passo (ver `criarTravaDoSilencio`).
+  const travaDoSilencio = criarTravaDoSilencio();
   // Teto de mensagens físicas por turno (F2-15b) — `seq` JÁ é a contagem certa: ele só
   // avança quando o envio de fato sai pro canal (send_message + send_template, bolhas
   // incluídas), nunca em veto de gate. Checar `seq` antes de tentar o próximo envio
@@ -5487,6 +5507,37 @@ async function executarTurnoDoAgente(
         }
       },
     }),
+    // Issue #10: mensagem pessoal cala SÓ este turno. Sem `force_human`, sem
+    // passagem — a próxima mensagem do contato abre um turno normal. Some do
+    // modelo mais abaixo quando a chave está desligada ou o contato é cliente
+    // confirmado (`silencioDisponivel`).
+    stay_silent: tool({
+      ...STAY_SILENT_TOOL_DEF,
+      execute: async (raw) => {
+        try {
+          const res = await applyStaySilent(
+            pool,
+            { tenantId, conversationId: input.conversationId },
+            { pendentesDoCliente: inboundsPendentes, seq, trava: travaDoSilencio, log: runLog },
+            raw,
+          );
+          if (res.ok) {
+            calouPorMensagemPessoal = true;
+            pararDigitando();
+          }
+          return res;
+        } catch (err) {
+          noteRunError(err instanceof Error ? err : new Error(String(err)));
+          return {
+            ok: false,
+            error: {
+              code: 'internal_error',
+              message: 'erro interno ao registrar o silêncio — encerre o turno agora, sem enviar nada.',
+            },
+          };
+        }
+      },
+    }),
     // F4-06: handoff humano acionado pelo PRÓPRIO modelo (cidadão de 1ª classe). MUTANTE
     // (seta force_human no CRM + cancela crons + inbox), fora de READ_ONLY_TOOLS. tenant/
     // lead/conversation vêm da ROW do job (closure), nunca do payload do modelo.
@@ -5682,6 +5733,9 @@ async function executarTurnoDoAgente(
   // `aplicaAChaveDeAssuntoJuridico` para o teste do turno exercitá-la fora do
   // turno (tests/unit/chave-juridico-so-troca-a-descricao.test.ts).
   aplicaAChaveDeAssuntoJuridico(rawTools, agentConfig?.handoffLegalEnabled);
+  // Issue #10: independente da chave de cima e da ferramenta de passagem.
+  if (!silencioDisponivel) delete rawTools.stay_silent;
+  cercarEnviosPelaTravaDoSilencio(rawTools, silencioDisponivel, travaDoSilencio);
 
   // Spec 15: snapshot mínimo do contexto disponível pro humano que for atender o
   // caso — campo de CONVENIÊNCIA pra UI, não load-bearing (nada aqui é relido pelo
@@ -6686,6 +6740,7 @@ async function executarTurnoDoAgente(
             turnoDescartado,
             passouParaAEquipe,
             capDeEnvio: capDeEnvioAtingido(),
+            calouPorMensagemPessoal,
           });
     if (correcaoDoTurnoMudoPedida) {
       runLog.warn('turno terminou sem mensagem ao cliente — pedindo UMA correção', {
@@ -6759,7 +6814,8 @@ async function executarTurnoDoAgente(
     //  - a correção gastou o teto de passos dela sem responder (`tetoNaCorrecao`),
     //    o mesmo sinal que a prévia já trata como falha.
     // As condições isentam toda razão LEGÍTIMA de silêncio — turno descartado
-    // (obsoleto), passagem para a equipe (handoff do cliente), teto de pacing, e
+    // (obsoleto), passagem para a equipe (handoff do cliente), silêncio de propósito
+    // em mensagem pessoal (`stay_silent`), teto de pacing, e
     // o veto IRREVOGÁVEL (opt-out, contato interno, LGPD: o silêncio é a decisão).
     // Veto de ENSINO não isenta: ele não entregou nada ao cliente, e a regra antiga
     // (`tentativasDeEnvio === 0`, "o veto já ensinou") é a que `turno-mudo.ts`
@@ -6780,6 +6836,7 @@ async function executarTurnoDoAgente(
       !vetoIrrevogavel &&
       !turnoDescartado &&
       !passouParaAEquipe &&
+      !calouPorMensagemPessoal &&
       !capDeEnvioAtingido();
     if (silencioSemRazaoLegitima && (saidaTruncada || correcaoTruncou || correcaoTentouEnviar || tetoNaCorrecao)) {
       const desfechoTerminal = saidaTruncada

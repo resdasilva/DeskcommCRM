@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
@@ -258,5 +261,47 @@ describe("a corrida no mesmo passo: send_message e o silêncio", () => {
     cercarEnviosPelaTravaDoSilencio(tools, false, trava);
     expect(tools.send_message).toBe(antes.send_message);
     expect(tools.send_template).toBe(antes.send_template);
+  });
+});
+
+describe("fiação no turno", () => {
+  const fonte = readFileSync(join(process.cwd(), "lib/agent-engine/agent/inbound-turn.ts"), "utf8");
+  const previa = readFileSync(join(process.cwd(), "lib/agent-engine/agent/preview.ts"), "utf8");
+
+  it("a disponibilidade é decidida DEPOIS de ler o contato e ANTES de fechar o prompt", () => {
+    const contexto = fonte.indexOf("const openingContext = preview");
+    const disponivel = fonte.indexOf("const silencioDisponivel = silencioPessoalDisponivel(agentConfig, openingContext.context.contact);");
+    const bloco = fonte.indexOf("blocoDoSilencioPessoal(silencioDisponivel)");
+    const system = fonte.indexOf("const system = blocosResidentes.join");
+    expect(contexto).toBeGreaterThan(-1);
+    expect(disponivel).toBeGreaterThan(contexto);
+    expect(bloco).toBeGreaterThan(disponivel);
+    expect(system).toBeGreaterThan(bloco);
+  });
+
+  it("indisponível: a ferramenta sai do modelo; disponível: os envios ganham a trava", () => {
+    expect(fonte).toContain("if (!silencioDisponivel) delete rawTools.stay_silent;");
+    expect(fonte).toContain("cercarEnviosPelaTravaDoSilencio(rawTools, silencioDisponivel, travaDoSilencio);");
+  });
+
+  it("a ferramenta marca o turno como calado, e as duas guardas do turno mudo leem a marca", () => {
+    const inicio = fonte.indexOf("    stay_silent: tool({");
+    expect(inicio).toBeGreaterThan(-1);
+    const corpo = fonte.slice(inicio, fonte.indexOf("    }),", inicio));
+    expect(corpo).toContain("applyStaySilent(");
+    expect(corpo).toContain("calouPorMensagemPessoal = true;");
+    expect(corpo).not.toMatch(/force_human|performHumanHandoff|passouParaAEquipe/);
+    expect(fonte).toMatch(/turnoMudoPedeCorrecao\(\{[^}]*calouPorMensagemPessoal,/s);
+    expect(fonte).toMatch(/silencioSemRazaoLegitima =[^;]*!calouPorMensagemPessoal/s);
+  });
+
+  it("a passagem para a equipe não conhece mais mensagem pessoal", () => {
+    expect(fonte).not.toContain("mensagem_pessoal");
+    expect(fonte).not.toContain("PassagemSilenciosa");
+  });
+
+  it("na prévia, stay_silent vira um impedimento legível e não executa", () => {
+    expect(previa).toContain("name === 'stay_silent'");
+    expect(previa).toContain("O assistente ficaria em silêncio: a mensagem parece pessoal.");
   });
 });

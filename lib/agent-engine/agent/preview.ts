@@ -515,6 +515,20 @@ export function applyPreviewPolicy(
                 ...(imagemPrevista !== undefined ? { foto_enviada: false, foto_prevista: imagemPrevista } : {}),
               };
             }
+            // Issue #10: na prévia o silêncio não grava nada. Vira um impedimento
+            // legível — é ele que a tela mostra, e é ele que impede o
+            // "decidiu não responder" genérico de `desfechoSemCandidato`.
+            if (name === 'stay_silent') {
+              p.result.impediments.push({
+                code: 'personal_message_silence',
+                message: 'O assistente ficaria em silêncio: a mensagem parece pessoal.',
+              });
+              return {
+                ok: true,
+                status: 'proposal_only',
+                message: 'Silêncio registrado na prévia. Nada foi enviado. Encerre o turno.',
+              };
+            }
             if (catalog?.category === 'read')
               return {
                 ok: false,
