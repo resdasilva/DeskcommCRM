@@ -1,5 +1,5 @@
 -- manifest: **Silêncio do turno quando a mensagem é pessoal (issue #10).** `ai_agent_versions.silencio_em_mensagem_pessoal boolean not null default false` (desligada por padrão, coberta pela trava de imutabilidade da versão publicada); `contacts.cliente_confirmado_em` (quem alguém confirmou como cliente não é calado de novo, e a marca some quando o contato vira pessoal); `'silencio_mensagem_pessoal'` em `agent_inbox_items_kind_check`, com no máximo um aviso aberto por conversa e dois gatilhos que o fecham sozinho. Par de `lib/agent-engine/agent/silencio-pessoal.ts`.
--- 9316 — O SILÊNCIO DO TURNO QUANDO A MENSAGEM É PESSOAL
+-- 9343 — O SILÊNCIO DO TURNO QUANDO A MENSAGEM É PESSOAL
 --
 -- Família, amigo ou fornecedor escreve para o número do negócio. Com a chave
 -- ligada na versão, o agente não responde AQUELE turno e continua atendendo:

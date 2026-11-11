@@ -1,5 +1,5 @@
 /**
- * O BANCO DO SILÊNCIO EM MENSAGEM PESSOAL (migration 9316).
+ * O BANCO DO SILÊNCIO EM MENSAGEM PESSOAL (migration 9343).
  *
  * Um aviso aberto por conversa; ele fecha sozinho quando a conversa é
  * encerrada ou quando sai qualquer mensagem nela; e marcar o contato como
@@ -10,8 +10,8 @@ import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { GOV_ORG, GOV_SESSION, seedGov, sql } from "./gov-helpers";
 
 const KIND = "silencio_mensagem_pessoal";
-const CONTATO = "cccccccc-9316-4000-8000-000000000001";
-const CONVERSA = "cccccccc-9316-4000-8000-000000000011";
+const CONTATO = "cccccccc-9343-4000-8000-000000000001";
+const CONVERSA = "cccccccc-9343-4000-8000-000000000011";
 
 function abrir(): void {
   sql(`insert into public.agent_inbox_items (organization_id, kind, severity, title, ref_kind, ref_id)

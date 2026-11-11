@@ -10460,7 +10460,7 @@ alter table public.agent_inbox_items
     -- razões de sempre (#159, bloco único por constraint) e o item nasce SEM
     -- referência: o destino é a tela de Credenciais, para quem administra.
     'assinatura_desconectada',
-    -- (migration 9316, issue #10) O agente ficou em silêncio de propósito porque
+    -- (migration 9343, issue #10) O agente ficou em silêncio de propósito porque
     -- a mensagem parece pessoal. `info`: nada quebrou; o aviso existe para alguém
     -- corrigir quando quem escreveu era cliente.
     'silencio_mensagem_pessoal',
@@ -73716,10 +73716,10 @@ begin
     for select using (organization_id in (select public.fn_user_org_ids()));
 end $trilha_do_roteador$;
 
--- ---- silêncio do turno quando a mensagem é pessoal (migration 9316) ----
+-- ---- silêncio do turno quando a mensagem é pessoal (migration 9343) ----
 -- Issue #10. O valor `silencio_mensagem_pessoal` entrou no bloco ÚNICO de
 -- `agent_inbox_items_kind_check`, e não aqui. Antes da VARREDURA anon porque cria função.
--- 9316 — O SILÊNCIO DO TURNO QUANDO A MENSAGEM É PESSOAL
+-- 9343 — O SILÊNCIO DO TURNO QUANDO A MENSAGEM É PESSOAL
 --
 -- Família, amigo ou fornecedor escreve para o número do negócio. Com a chave
 -- ligada na versão, o agente não responde AQUELE turno e continua atendendo:
