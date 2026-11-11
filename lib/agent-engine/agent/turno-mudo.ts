@@ -15,7 +15,9 @@
  * - a conversa foi passada à equipe (o aviso da escalação é do sistema);
  * - o cap de envio do número barrou (o turno é reagendado mais abaixo);
  * - a cadeia vetou com um código que manda PARAR (opt-out, contato interno,
- *   conversa com a equipe, LGPD): reescrever não muda o veredito.
+ *   conversa com a equipe, LGPD): reescrever não muda o veredito;
+ * - o agente calou de propósito numa mensagem pessoal (`stay_silent`, issue
+ *   #10): pedir a correção seria pedir que ele respondesse à mãe do dono.
  *
  * ⚠️ Tentativa de envio que levou VETO não é razão legítima — e já foi. A
  * regra antiga exigia `tentativasDeEnvio === 0` com o argumento "o veto já
@@ -81,12 +83,15 @@ export function turnoMudoPedeCorrecao(t: {
   turnoDescartado: boolean;
   passouParaAEquipe: boolean;
   capDeEnvio: boolean;
+  /** `stay_silent` registrou o silêncio neste turno (issue #10). Ausente = não. */
+  calouPorMensagemPessoal?: boolean;
 }): boolean {
   return (
     t.enviadas === 0 &&
     !t.vetoIrrevogavel &&
     !t.turnoDescartado &&
     !t.passouParaAEquipe &&
-    !t.capDeEnvio
+    !t.capDeEnvio &&
+    t.calouPorMensagemPessoal !== true
   );
 }

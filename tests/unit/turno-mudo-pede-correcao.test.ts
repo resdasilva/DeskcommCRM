@@ -28,6 +28,7 @@ describe("o turno mudo pede correção só quando nada explica o silêncio", () 
     ["o turno foi descartado como obsoleto", { turnoDescartado: true }],
     ["a conversa foi passada à equipe", { passouParaAEquipe: true }],
     ["o cap de envio do número barrou", { capDeEnvio: true }],
+    ["o agente calou de propósito numa mensagem pessoal", { calouPorMensagemPessoal: true }],
     // opt-out / contato interno / equipe / LGPD: o veto diz "encerre sem tentar de
     // novo" — a correção mandaria o modelo tentar de novo, contra o veto.
     ["a cadeia vetou com um código que manda parar", { tentativasDeEnvio: 1, vetoIrrevogavel: true }],
