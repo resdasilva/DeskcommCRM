@@ -55,6 +55,13 @@ export interface PublishedAgentConfig {
    * Consumidor: `inbound-turn.ts` (a descrição da ferramenta de passagem).
    */
   handoffLegalEnabled?: boolean;
+  /**
+   * Mensagem PESSOAL para o dono ou a equipe cala só o turno (issue #10)?
+   * Coluna `ai_agent_versions.silencio_em_mensagem_pessoal`, padrão DESLIGADO.
+   * Opcional pelo mesmo motivo de `handoffLegalEnabled`; quem consome lê com
+   * `=== true`. Consumidor: `silencio-pessoal.ts`, pelo turno.
+   */
+  silencioEmMensagemPessoal?: boolean;
   proposalAiDraftEnabled: boolean;
   splitMessages: boolean;
   splitMaxChars: number;
@@ -202,6 +209,7 @@ interface Row {
   handoff_keywords: string[] | null;
   handoff_tool_enabled: boolean;
   handoff_legal_enabled: boolean;
+  silencio_em_mensagem_pessoal: boolean;
   proposal_ai_draft_enabled: boolean;
   split_messages: boolean;
   split_max_chars: number;
@@ -240,6 +248,7 @@ const SELECT_AGENT_CONFIG_COLUMNS = `a.operation_mode,a.paused_at,a.operation_re
             v.handoff_keywords,
             v.handoff_tool_enabled,
             v.handoff_legal_enabled,
+            v.silencio_em_mensagem_pessoal,
             v.proposal_ai_draft_enabled,
             v.split_messages,
             v.split_max_chars,
@@ -309,6 +318,7 @@ function mapAgentConfigRow(r: Row): PublishedAgentConfig {
     handoffKeywords: palavrasDePassagem(r.handoff_keywords),
     handoffToolEnabled: r.handoff_tool_enabled,
     handoffLegalEnabled: r.handoff_legal_enabled,
+    silencioEmMensagemPessoal: r.silencio_em_mensagem_pessoal,
     proposalAiDraftEnabled: r.proposal_ai_draft_enabled,
     splitMessages: r.split_messages,
     splitMaxChars: r.split_max_chars,
