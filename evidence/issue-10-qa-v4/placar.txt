@@ -1,16 +1,22 @@
-Prova do silêncio do turno em mensagem pessoal (issue #10), turno real de WhatsApp (inbound_turn com histórico), banco de teste local, modelo google/crm-padrao pelo OmniRoute. Rodada de 12/11/2026, entre 05h20 e 06h10.
+Prova do silêncio do turno em mensagem pessoal (issue #10), turno real de WhatsApp (inbound_turn com histórico), banco de teste local, modelo google/crm-padrao pelo OmniRoute. Rodadas de 12/11/2026: das 05h20 às 06h10 e das 10h50 às 11h16 (entre as duas, o gateway de modelos recusou todas as chamadas).
 
-Com o turno chegando ao modelo:
-mae-x20: 20 de 20 (silêncio, aviso aberto, nada ao contato, sem force_human, sem passagem, nada agendado)
-mae-longa-x10: 10 de 10 (texto exato do dono)
-volta-sozinha-x10: 7 de 7 que chegaram ao modelo (silêncio na mãe e, no passo seguinte da mesma conversa, resposta ao preço do corte); 3 caíram no gateway
-parar-x5: 5 de 5 (o pedido de parar é atendido pela regra de opt-out antes do modelo; nenhum silêncio, nenhum aviso)
+Chave LIGADA:
+mae-x20: 20 de 20 em silêncio (aviso aberto, nada ao contato, sem force_human, sem bot calado, sem passagem, nada agendado)
+mae-longa-x10: 10 de 10 em silêncio (texto exato do dono)
+volta-sozinha-x10: 10 de 10. Passo 1, a mãe: 10 de 10 em silêncio. Passo 2, na mesma conversa, "E quanto custa o corte?": 10 de 10 responderam o preço, sem passagem.
+misturada-x10: 10 de 10 responderam só a parte do trabalho ("E aí, beleza? Quanto tá o corte?"), nenhum silêncio
+comercial-chave-ligada-x5: 0 silêncios em 5. Em 3 o agente respondeu; em 2 passou a conversa por low_confidence (a frase pede o preço de uma "consulta", que a barbearia não tem; é o caminho de sempre, e o controle da v3 mostrou o mesmo)
+cliente-confirmado-x5: 5 de 5 sem a ferramenta stay_silent oferecida e sem aviso (contato com cliente_confirmado_em)
+parar-x5: 5 de 5 sem silêncio e sem aviso (o pedido de parar é atendido pela regra de opt-out antes do modelo)
 
-Sem prova, porque o gateway de modelos recusou todas as chamadas ("all targets were skipped by pre-dispatch filters") a partir do meio da rodada e seguia recusando às 10h13:
-misturada-x10: 0 de 10 chegaram ao modelo
-cliente-confirmado-x5: 0 de 5 chegaram ao modelo
-comercial-chave-ligada-x5: 0 de 5 chegaram ao modelo (os 5 primeiros nem rodaram: a autorização do contato no gate allowlist tinha vencido; o roteiro foi corrigido para renová-la a cada tentativa)
-comercial-chave-desligada-x5: não rodou
+Chave DESLIGADA (controle: cópia da mesma versão, só com a chave desligada, publicada só durante o controle):
+comercial-chave-desligada-x5: 5 de 5 responderam, stay_silent oferecida em 0
+mae-chave-desligada-x5: 5 de 5 responderam à mãe ("não sou da família..."), stay_silent oferecida em 0, nenhum aviso. É o comportamento de hoje, que a chave corrige.
+
+Observações, fora da régua:
+- Na volta-sozinha, o send_message foi vetado algumas vezes por "copy repetida em massa": a prova manda a mesma resposta dezenas de vezes no mesmo número, e a trava anti-banimento percebe. A resposta saiu em todas as 10 tentativas.
+- No cliente-confirmado o agente responde à mãe dizendo que "deixou o recado registrado para o Renaldo", o que não aconteceu. A frase vem do prompt do próprio agente de teste ("nunca responda como se fosse parente"), não desta entrega, e só acontece com o contato confirmado como cliente.
+- 5 turnos caíram no gateway na primeira rodada (volta-sozinha) e foram refeitos na segunda; os arquivos .jsonl guardam só a segunda rodada desses cenários.
 
 Prova pela tela (localhost, build de produção, mesmo banco), capturas nesta pasta:
 tela-1-chave-no-agente: a chave "Não responder mensagem pessoal" na tela do agente, abaixo da chave do assunto jurídico
