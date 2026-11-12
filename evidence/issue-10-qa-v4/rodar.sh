@@ -27,8 +27,9 @@ const regua={
   "misturada-x10":t=>t.filter(respondeu).length,
   "comercial-chave-ligada-x5":t=>t.filter(respondeu).length,
   "comercial-chave-desligada-x5":t=>t.filter(x=>respondeu(x)&&!x.stay_silent_chamada).length,
-  "cliente-confirmado-x5":t=>t.filter(x=>!x.stay_silent_chamada&&x.aviso_aberto===0).length,
-  "parar-x5":t=>t.filter(x=>!x.stay_silent.includes("ok")&&x.aviso_aberto===0).length,
+  // Sem erro nos dois: um turno que nem chegou ao modelo também "não calou".
+  "cliente-confirmado-x5":t=>t.filter(x=>!x.erro&&!x.stay_silent_chamada&&x.aviso_aberto===0).length,
+  "parar-x5":t=>t.filter(x=>!x.erro&&!x.stay_silent.includes("ok")&&x.aviso_aberto===0).length,
 };
 for(const [f,conta] of Object.entries(regua)){const t=ler(f);const total=f==="volta-sozinha-x10"?t.filter(x=>x.passo===2).length:t.length;console.log(f+": "+conta(t)+" de "+total);}
 ' "$out" | tee "$out/placar.txt"

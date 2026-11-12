@@ -117,14 +117,15 @@ async function main(): Promise<void> {
     for (let i = 1; i <= n; i++) {
       await restaurar();
       // Com o gate 'allowlist' o contato precisa estar autorizado para a IA
-      // atender — é o que o dono faz ao testar. Volta ao valor de antes no fim.
-      if (antes.ai_authorized_at === null) {
-        await pool.query(
-          `update contacts set ai_authorized_at = now(), ai_authorized_reason = 'prova issue #10'
-            where id = $1`,
-          [antes.contact_id],
-        );
-      }
+      // atender — é o que o dono faz ao testar. A autorização VENCE (21 dias, o
+      // knob do gate), então ela é renovada a cada tentativa, e não só quando
+      // falta: medido em 12/11/2026, o contato comercial autorizado em 15/10 fez o
+      // turno nem rodar, sem erro nenhum. Volta ao valor de antes no fim.
+      await pool.query(
+        `update contacts set ai_authorized_at = now(), ai_authorized_reason = 'prova issue #10'
+          where id = $1`,
+        [antes.contact_id],
+      );
       if (clienteConfirmado) {
         await pool.query(`update contacts set cliente_confirmado_em = now() where id = $1`, [
           antes.contact_id,
