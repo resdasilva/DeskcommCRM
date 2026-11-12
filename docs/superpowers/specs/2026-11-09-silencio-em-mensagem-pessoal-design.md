@@ -271,6 +271,18 @@ Limite conhecido, medido no PR 11: com `gpt-5.4-mini` o texto longo da mãe deu 
 depende do modelo do agente. A régua acima vale para o modelo da prova; a tela da chave não promete
 mais do que isso.
 
+### Resultado (12/11/2026)
+
+A régua acima passou no turno real, com `google/crm-padrao`; o placar por cenário, com o controle
+da chave desligada, está em `evidence/issue-10-qa-v4/placar.txt`. A prova pela tela foi feita no
+build de produção, contra o banco de teste local:
+
+![A chave na tela do agente](evidence/issue-10-qa-v4/tela-1-chave-no-agente.jpg)
+![Rascunho salvo com a chave ligada](evidence/issue-10-qa-v4/tela-2-rascunho-salvo.jpg)
+![O aviso na Central, com os dois botões](evidence/issue-10-qa-v4/tela-3-aviso-na-central.jpg)
+![Contato marcado como pessoal pelo aviso](evidence/issue-10-qa-v4/tela-4-marcado-como-pessoal.jpg)
+![Para o atendente, o botão de pessoal fica desabilitado com o motivo](evidence/issue-10-qa-v4/tela-5-atendente-sem-permissao.jpg)
+
 ## 7. Testes
 
 - `tests/unit/passagem-silenciosa-mensagem-pessoal.test.ts` vira
