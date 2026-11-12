@@ -221,6 +221,8 @@ const versionShapeSchema = z
     // `true` porque quem não mexer tem de ficar com o resultado de hoje; o
     // efeito da chave (trocar a descrição da ferramenta) mora no turno.
     handoff_legal_enabled: z.boolean().default(true),
+    // Issue #10: mensagem pessoal cala só o turno. Desligada por padrão.
+    silencio_em_mensagem_pessoal: z.boolean().default(false),
     // Ver as fotos que o cliente envia (migration 9108) — mesmo molde: ligado por
     // padrão, porque quem não mexer fica com o que tem hoje. O efeito mora no
     // turno (aviso no lugar da foto) e em `haLeitorDaDescricao` (quem paga a visão).
@@ -338,6 +340,7 @@ export const versionPatchSchema = versionShapeSchema
     handoff_keywords: versionShapeSchema.shape.handoff_keywords.removeDefault(),
     handoff_tool_enabled: versionShapeSchema.shape.handoff_tool_enabled.removeDefault(),
     handoff_legal_enabled: versionShapeSchema.shape.handoff_legal_enabled.removeDefault(),
+    silencio_em_mensagem_pessoal: versionShapeSchema.shape.silencio_em_mensagem_pessoal.removeDefault(),
     image_vision_enabled: versionShapeSchema.shape.image_vision_enabled.removeDefault(),
     proposal_ai_draft_enabled: versionShapeSchema.shape.proposal_ai_draft_enabled.removeDefault(),
     cases_enabled: versionShapeSchema.shape.cases_enabled.removeDefault(),

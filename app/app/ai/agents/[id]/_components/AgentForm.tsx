@@ -220,6 +220,7 @@ interface FormState {
    * jurídica". Padrão LIGADO (`?? true` abaixo), como a coluna na versão.
    */
   handoff_legal_enabled: boolean;
+  silencio_em_mensagem_pessoal: boolean;
   /** Ver as fotos que o cliente envia (9108). Padrão LIGADO, como a coluna. */
   image_vision_enabled: boolean;
   proposal_ai_draft_enabled: boolean;
@@ -338,6 +339,7 @@ export function buildState(args: {
     ],
     handoff_tool_enabled: version?.handoff_tool_enabled ?? true,
     handoff_legal_enabled: version?.handoff_legal_enabled ?? true,
+    silencio_em_mensagem_pessoal: version?.silencio_em_mensagem_pessoal ?? false,
     // `?? true`: a versão de antes da 9108 via as fotos, e continua vendo.
     image_vision_enabled: version?.image_vision_enabled ?? true,
     proposal_ai_draft_enabled: version?.proposal_ai_draft_enabled ?? true,
@@ -410,6 +412,7 @@ function toVersionPayload(s: FormState) {
     handoff_keywords: s.handoff_keywords,
     handoff_tool_enabled: s.handoff_tool_enabled,
     handoff_legal_enabled: s.handoff_legal_enabled,
+    silencio_em_mensagem_pessoal: s.silencio_em_mensagem_pessoal,
     image_vision_enabled: s.image_vision_enabled,
     proposal_ai_draft_enabled: s.proposal_ai_draft_enabled,
     cases_enabled: s.cases_enabled,
@@ -1650,6 +1653,23 @@ export function AgentForm(props: Props) {
             <p className="text-xs text-muted-foreground">
               {t(
                 "Desligue se assunto jurídico é o trabalho normal deste agente. Quem pede para falar com uma pessoa continua sendo passado.",
+              )}
+            </p>
+            {/* Issue #10: mensagem pessoal cala SÓ o turno. Não é passagem, e por
+                isso não depende do interruptor de cima: funciona mesmo com a
+                ferramenta de chamar uma pessoa desligada. */}
+            <div className="flex items-center gap-2">
+              <Switch
+                id="silencio_em_mensagem_pessoal"
+                checked={form.silencio_em_mensagem_pessoal}
+                onCheckedChange={(v) => patch({ silencio_em_mensagem_pessoal: v })}
+                disabled={disabled}
+              />
+              <Label htmlFor="silencio_em_mensagem_pessoal">{t("Não responder mensagem pessoal")}</Label>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {t(
+                "Quando família, amigo ou fornecedor escreve para este número, o assistente não responde e deixa um aviso na Central. Ele volta a atender quando o assunto for trabalho.",
               )}
             </p>
             <HandoffKeywordsInput

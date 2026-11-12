@@ -18,6 +18,8 @@ export interface AgentInboxItem {
   destination: DestinoDoAviso;
   /** Só nos avisos da cobrança, e só para quem administra: o link que paga em um clique. */
   link_de_pagamento?: string | null;
+  /** Só no aviso aberto de silêncio em mensagem pessoal: o que os dois botões precisam. */
+  silencio_pessoal?: { conversation_id: string; contact_id: string; pode_marcar_pessoal: boolean } | null;
 }
 
 export interface AgentInboxData {

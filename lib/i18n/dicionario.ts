@@ -6032,6 +6032,33 @@ export const DICIONARIO: Traducoes = {
   "Pedido para falar com uma pessoa, percebido pelo Jev": {
     es: "Pedido de hablar con una persona, detectado por Jev",
   },
+  // ── Silêncio do turno em mensagem pessoal (migration 9343, issue #10) ──
+  "O assistente não respondeu: a mensagem parece pessoal":
+    { es: "El asistente no respondió: el mensaje parece personal" },
+  "Se for cliente, peça a resposta. Se for pessoal, marque o contato e o assistente não entra mais nessa conversa.":
+    { es: "Si es cliente, pide la respuesta. Si es personal, marca el contacto y el asistente no vuelve a entrar en esa conversación." },
+  "O assistente ficou em silêncio numa mensagem que parece pessoal":
+    { es: "El asistente guardó silencio en un mensaje que parece personal" },
+  "Não foi possível confirmar este contato como cliente.":
+    { es: "No se pudo confirmar este contacto como cliente." },
+  "Este contato está marcado como pessoal. Desmarque antes de confirmar como cliente.":
+    { es: "Este contacto está marcado como personal. Desmárcalo antes de confirmarlo como cliente." },
+  "Marcado como cliente. O assistente vai responder a última mensagem.":
+    { es: "Marcado como cliente. El asistente va a responder el último mensaje." },
+  "Marcado como cliente. A conversa já teve resposta, então nada foi reenviado.":
+    { es: "Marcado como cliente. La conversación ya tuvo respuesta, así que no se reenvió nada." },
+  "É cliente, responder":
+    { es: "Es cliente, responder" },
+  "Marcar como contato pessoal":
+    { es: "Marcar como contacto personal" },
+  "Contato marcado como pessoal. O assistente não entra mais nessa conversa.":
+    { es: "Contacto marcado como personal. El asistente no vuelve a entrar en esa conversación." },
+  "Só gerente ou dono marca um contato como pessoal.":
+    { es: "Solo un gerente o el dueño marca un contacto como personal." },
+  "Não responder mensagem pessoal":
+    { es: "No responder mensajes personales" },
+  "Quando família, amigo ou fornecedor escreve para este número, o assistente não responde e deixa um aviso na Central. Ele volta a atender quando o assunto for trabalho.":
+    { es: "Cuando un familiar, un amigo o un proveedor escribe a este número, el asistente no responde y deja un aviso en la Central. Vuelve a atender cuando el asunto es de trabajo." },
   "Pedido para parar de receber mensagens, percebido pelo Jev": {
     es: "Pedido de dejar de recibir mensajes, detectado por Jev",
   },

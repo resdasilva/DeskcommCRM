@@ -9748,5 +9748,18 @@
   "A apresentação do catálogo está desligada nesta empresa.": "Catalog presentation is turned off for this company.",
   "O áudio precisa ser OGG/Opus, WebM/Opus ou M4A válido.": "The audio must be valid OGG/Opus, WebM/Opus or M4A.",
   "Apresentação do catálogo pela IA": "AI catalog presentation",
-  "Cada produto pode ter uma apresentação em texto ou áudio, com fotos e preço, que o atendente de IA envia em sequência quando o cliente pede.": "Each product can have a presentation in text or audio, with photos and price, which the AI agent sends in sequence when the customer asks."
+  "Cada produto pode ter uma apresentação em texto ou áudio, com fotos e preço, que o atendente de IA envia em sequência quando o cliente pede.": "Each product can have a presentation in text or audio, with photos and price, which the AI agent sends in sequence when the customer asks.",
+  "O assistente não respondeu: a mensagem parece pessoal": "The assistant did not reply: the message looks personal",
+  "Se for cliente, peça a resposta. Se for pessoal, marque o contato e o assistente não entra mais nessa conversa.": "If it is a customer, ask for the reply. If it is personal, mark the contact and the assistant stays out of that conversation.",
+  "O assistente ficou em silêncio numa mensagem que parece pessoal": "The assistant stayed silent on a message that looks personal",
+  "Não foi possível confirmar este contato como cliente.": "Could not confirm this contact as a customer.",
+  "Este contato está marcado como pessoal. Desmarque antes de confirmar como cliente.": "This contact is marked as personal. Unmark it before confirming as a customer.",
+  "Marcado como cliente. O assistente vai responder a última mensagem.": "Marked as a customer. The assistant will reply to the last message.",
+  "Marcado como cliente. A conversa já teve resposta, então nada foi reenviado.": "Marked as a customer. The conversation already got a reply, so nothing was resent.",
+  "É cliente, responder": "It is a customer, reply",
+  "Marcar como contato pessoal": "Mark as personal contact",
+  "Contato marcado como pessoal. O assistente não entra mais nessa conversa.": "Contact marked as personal. The assistant stays out of that conversation.",
+  "Só gerente ou dono marca um contato como pessoal.": "Only a manager or the owner marks a contact as personal.",
+  "Não responder mensagem pessoal": "Do not reply to personal messages",
+  "Quando família, amigo ou fornecedor escreve para este número, o assistente não responde e deixa um aviso na Central. Ele volta a atender quando o assunto for trabalho.": "When family, a friend or a supplier writes to this number, the assistant does not reply and leaves a notice in the Central. It goes back to answering when the subject is work."
 }

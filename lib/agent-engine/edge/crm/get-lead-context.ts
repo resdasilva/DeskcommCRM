@@ -139,6 +139,12 @@ export interface LeadContext {
      * sempre preenche; quem constrói contexto à mão num teste não precisa.
      */
     is_personal?: boolean;
+    /**
+     * `contacts.cliente_confirmado_em` preenchida: alguém confirmou pela Central
+     * que este contato é cliente, e o turno não oferece o silêncio a ele (issue
+     * #10). Opcional pelo mesmo motivo de `is_personal`.
+     */
+    cliente_confirmado?: boolean;
   };
   conversation_id: string | null;
   previous_service?: { label: string; outcomes: string[] };
@@ -187,6 +193,7 @@ interface ContactRow {
   is_blocked: boolean;
   /** Spec 21: espelha a coluna (o veto de envio e o esconderijo entram na fatia 2). */
   is_personal: boolean;
+  cliente_confirmado_em: string | null;
   source: string | null;
   consent: Record<string, unknown> | null;
   is_anonymized: boolean;
@@ -270,7 +277,7 @@ export async function getLeadContext(
   knobs: LeadContextKnobs,
 ): Promise<LeadContextResult> {
   const { rows: contactRows } = await db.query<ContactRow>(
-    `select name, display_name, email, phone_number, tags, is_blocked, is_personal, source, consent, is_anonymized
+    `select name, display_name, email, phone_number, tags, is_blocked, is_personal, cliente_confirmado_em, source, consent, is_anonymized
      from contacts where organization_id = $1 and id = $2`,
     [input.tenantId, input.leadId],
   );
@@ -431,6 +438,7 @@ export async function getLeadContext(
         tags: contact.tags ?? [],
         is_blocked: contact.is_blocked,
         is_personal: contact.is_personal,
+        cliente_confirmado: contact.cliente_confirmado_em !== null,
       },
       conversation_id: conversationId,
       last_human_decision: lastHumanDecision,

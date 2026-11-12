@@ -21,6 +21,8 @@ import { Bell, Check } from "@/lib/ui/icons";
 import { useT } from "@/hooks/i18n/useT";
 import { ApiError } from "@/lib/api/types";
 
+import { AcoesDoSilencio } from "./AcoesDoSilencio";
+
 const SEVERITY_VARIANT: Record<AgentInboxSeverity, "info" | "warning" | "error"> = {
   info: "info",
   warn: "warning",
@@ -196,6 +198,7 @@ function InboxRow({
             </a>
           </Button>
         ) : null}
+        <AcoesDoSilencio item={item} />
       </div>
       {canResolve ? (
         item.status === "resolved" ? (

@@ -968,6 +968,7 @@ export type Database = {
           followup: NonNullable<Json>;
           handoff_keywords: string[];
           handoff_legal_enabled: boolean;
+          silencio_em_mensagem_pessoal: boolean;
           handoff_tool_enabled: boolean;
           history_message_window: number;
           history_token_window: number;
@@ -1012,6 +1013,7 @@ export type Database = {
           followup?: NonNullable<Json>;
           handoff_keywords?: string[];
           handoff_legal_enabled?: boolean;
+          silencio_em_mensagem_pessoal?: boolean;
           handoff_tool_enabled?: boolean;
           history_message_window?: number;
           history_token_window?: number;
@@ -1055,6 +1057,7 @@ export type Database = {
           followup?: NonNullable<Json>;
           handoff_keywords?: string[];
           handoff_legal_enabled?: boolean;
+          silencio_em_mensagem_pessoal?: boolean;
           handoff_tool_enabled?: boolean;
           history_message_window?: number;
           history_token_window?: number;
@@ -6110,6 +6113,7 @@ export type Database = {
           is_blocked: boolean;
           is_merged_into: string | null;
           is_personal: boolean;
+          cliente_confirmado_em: string | null;
           kind: string;
           last_activity_at: string | null;
           locale: string | null;
@@ -6172,6 +6176,7 @@ export type Database = {
           is_blocked?: boolean;
           is_merged_into?: string | null;
           is_personal?: boolean;
+          cliente_confirmado_em?: string | null;
           kind?: string;
           last_activity_at?: string | null;
           locale?: string | null;
@@ -6233,6 +6238,7 @@ export type Database = {
           is_blocked?: boolean;
           is_merged_into?: string | null;
           is_personal?: boolean;
+          cliente_confirmado_em?: string | null;
           kind?: string;
           last_activity_at?: string | null;
           locale?: string | null;

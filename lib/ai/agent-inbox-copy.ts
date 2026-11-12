@@ -104,6 +104,9 @@ export const KIND_LABEL = {
   // nem o contato bloqueado. O que fazer vai no corpo.
   jev_pedido_de_humano: "Pedido para falar com uma pessoa, percebido pelo Jev",
   jev_parar_de_receber: "Pedido para parar de receber mensagens, percebido pelo Jev",
+  // Diz o que o CONTATO viveu: ele escreveu e o assistente não respondeu. Quem
+  // lê decide se era para ser assim.
+  silencio_mensagem_pessoal: "O assistente ficou em silêncio numa mensagem que parece pessoal",
   proposta_travada: "Uma proposta ficou presa em envio e voltou a rascunho",
   proposta_pronta_para_revisao: "Uma proposta está pronta para revisão",
   // Rótulo do KIND, embaixo de todo item org_reativada. Desde a 0583 o `title`

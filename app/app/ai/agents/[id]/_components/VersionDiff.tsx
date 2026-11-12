@@ -89,6 +89,7 @@ function buildFieldChanges(a: AgentVersionRow, b: AgentVersionRow): FieldChange[
     ["history_token_window", "history_token_window"],
     ["handoff_tool_enabled", "handoff_tool_enabled"],
     ["handoff_legal_enabled", "handoff_legal_enabled"],
+    ["silencio_em_mensagem_pessoal", "silencio_em_mensagem_pessoal"],
     ["image_vision_enabled", "image_vision_enabled"],
     ["cases_enabled", "cases_enabled"],
     ["split_messages", "split_messages"],

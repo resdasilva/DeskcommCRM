@@ -25,6 +25,7 @@ export interface AgentVersionRow {
   handoff_tool_enabled: boolean;
   /** Passagem por ASSUNTO JURÍDICO ligada nesta versão (#2156). Padrão: `true`. */
   handoff_legal_enabled: boolean;
+  silencio_em_mensagem_pessoal: boolean;
   /** O agente vê as fotos que o cliente envia (9108). Ligado por padrão. */
   image_vision_enabled: boolean;
   proposal_ai_draft_enabled: boolean;
