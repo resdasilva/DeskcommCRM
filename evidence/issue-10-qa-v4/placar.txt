@@ -25,3 +25,4 @@ tela-3-aviso-na-central: o aviso com "É cliente, responder" e "Marcar como cont
 "É cliente, responder" (dono): aviso resolvido, contato com cliente_confirmado_em, auditoria contact.client_confirmed; o turno não foi repedido porque a última mensagem da conversa era de saída, como a spec manda
 tela-4-marcado-como-pessoal (dono): contato pessoal, conversa encerrada, aviso resolvido, aviso flutuante de confirmação
 tela-5-atendente-sem-permissao: para o papel atendente, "Marcar como contato pessoal" desabilitado com o motivo
+tela-6-aviso-com-orientacao: a frase "Se for cliente, peça a resposta. Se for pessoal, marque o contato..." aparece no aviso, acima do link e dos botões

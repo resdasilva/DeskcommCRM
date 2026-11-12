@@ -282,6 +282,7 @@ build de produção, contra o banco de teste local:
 ![O aviso na Central, com os dois botões](evidence/issue-10-qa-v4/tela-3-aviso-na-central.jpg)
 ![Contato marcado como pessoal pelo aviso](evidence/issue-10-qa-v4/tela-4-marcado-como-pessoal.jpg)
 ![Para o atendente, o botão de pessoal fica desabilitado com o motivo](evidence/issue-10-qa-v4/tela-5-atendente-sem-permissao.jpg)
+![O aviso com a frase de orientação acima dos botões](evidence/issue-10-qa-v4/tela-6-aviso-com-orientacao.jpg)
 
 ## 7. Testes
 
