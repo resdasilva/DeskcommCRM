@@ -131,6 +131,22 @@ describe("destinos da Central", () => {
       expect(oculta?.destination.estado, kind).toBe("indisponivel");
     }
   });
+  it("o aviso do silêncio em mensagem pessoal leva à conversa E mantém a orientação (issue #10)", async () => {
+    // Os dois botões do aviso decidem coisas diferentes, e "pessoal" tira o
+    // contato da operação: a frase que explica isso aparece mesmo com o link.
+    const [visivel] = await resolverDestinosDosAvisos(leitor().client, ORG, "agent", [aviso("silencio_mensagem_pessoal")]);
+    expect(visivel?.destination).toEqual({
+      estado: "disponivel",
+      rotulo: "Abrir conversa",
+      href: `/app/inbox/${ID}`,
+      orientacao: POLITICAS_DE_AVISO.silencio_mensagem_pessoal.orientacao,
+    });
+    // Controle: os outros avisos com destino seguem sem a frase.
+    const [handoff] = await resolverDestinosDosAvisos(leitor().client, ORG, "agent", [aviso("handoff")]);
+    expect(handoff?.destination).not.toHaveProperty("orientacao");
+    const [oculta] = await resolverDestinosDosAvisos(leitor([]).client, ORG, "agent", [aviso("silencio_mensagem_pessoal")]);
+    expect(oculta?.destination.estado).toBe("indisponivel");
+  });
   it("apresentação do catálogo interrompida (other → conversa) abre a conversa só para quem a enxerga", async () => {
     const [admin] = await resolverDestinosDosAvisos(leitor().client, ORG, "admin", [aviso("other", "conversation")]);
     expect(admin?.destination).toEqual({ estado: "disponivel", rotulo: "Abrir conversa", href: `/app/inbox/${ID}` });

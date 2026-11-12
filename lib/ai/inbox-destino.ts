@@ -245,6 +245,13 @@ function alvo(ref: string | null): Alvo | undefined {
   return ref && Object.hasOwn(REFERENCIAS_DE_AVISO, ref) ? REFERENCIAS_DE_AVISO[ref as keyof typeof REFERENCIAS_DE_AVISO] : undefined;
 }
 function permite(papel: Role, minimo: Role) { return ROLE_RANK[papel] >= ROLE_RANK[minimo]; }
+/**
+ * Avisos cuja orientação aparece MESMO quando há destino aberto. A regra da
+ * Central é esconder a frase quando existe o link (o link já diz o que fazer);
+ * aqui o aviso traz dois botões com efeitos diferentes, e um deles tira o
+ * contato da operação — a frase explica a escolha antes do clique (issue #10).
+ */
+const ORIENTACAO_TAMBEM_COM_DESTINO: ReadonlySet<string> = new Set(["silencio_mensagem_pessoal"]);
 function semPermissao(minimo: Role): DestinoDoAviso {
   return { estado: "sem_permissao", orientacao: minimo === "admin" ? "Peça a quem administra para revisar este contexto." : "Peça ao gestor para revisar este contexto." };
 }
@@ -308,7 +315,12 @@ export async function resolverDestinosDosAvisos<T extends ReferenciaDoAviso>(
         if (a) {
           destination = !permite(papel, a.papel) ? semPermissao(a.papel)
             : visiveis.get(item.ref_kind!)?.has(item.ref_id!)
-              ? { estado: "disponivel", rotulo: ROTULO_POR_KIND[item.kind] ?? a.rotulo, href: a.href(item.ref_id!, funilPorLead.get(item.ref_id!)) }
+              ? {
+                  estado: "disponivel",
+                  rotulo: ROTULO_POR_KIND[item.kind] ?? a.rotulo,
+                  href: a.href(item.ref_id!, funilPorLead.get(item.ref_id!)),
+                  ...(ORIENTACAO_TAMBEM_COM_DESTINO.has(item.kind) ? { orientacao: p.orientacao } : {}),
+                }
               : INDISPONIVEL;
         } else if (item.ref_kind === "ai_budget" || item.ref_kind === "organization") {
           destination = item.ref_id !== organizationId ? INDISPONIVEL
